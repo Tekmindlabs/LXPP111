@@ -134,4 +134,61 @@ export const calendarRouter = createTRPCRouter({
 				where: { id: input },
 			});
 		}),
+
+	getEventsByDateRange: protectedProcedure
+		.input(z.object({
+			startDate: z.date(),
+			endDate: z.date(),
+			level: z.string(),
+			entityId: z.string().nullable(),
+		}))
+		.query(async ({ ctx, input }) => {
+			const where: any = {
+				startDate: { gte: input.startDate },
+				endDate: { lte: input.endDate },
+				level: input.level,
+			};
+
+			if (input.entityId) {
+				where[`${input.level.toLowerCase()}Id`] = input.entityId;
+			}
+
+			return ctx.prisma.calendarEvent.findMany({ where });
+		}),
+
+	getEntitiesByLevel: protectedProcedure
+		.input(z.object({
+			level: z.string(),
+		}))
+		.query(async ({ ctx, input }) => {
+			switch (input.level) {
+				case 'PROGRAM':
+					return ctx.prisma.program.findMany();
+				case 'CLASS_GROUP':
+					return ctx.prisma.classGroup.findMany();
+				case 'CLASS':
+					return ctx.prisma.class.findMany();
+				default:
+					return [];
+			}
+		}),
+
+	createEvent: protectedProcedure
+		.input(z.object({
+			title: z.string(),
+			description: z.string().optional(),
+			startDate: z.date(),
+			endDate: z.date(),
+			level: z.enum(['CALENDAR', 'PROGRAM', 'CLASS_GROUP', 'CLASS']),
+			entityId: z.string().optional(),
+		}))
+		.mutation(async ({ ctx, input }) => {
+			return ctx.prisma.calendarEvent.create({
+				data: {
+					...input,
+					status: 'ACTIVE',
+					calendarId: ctx.session.user.id,
+				},
+			});
+		}),
 });
