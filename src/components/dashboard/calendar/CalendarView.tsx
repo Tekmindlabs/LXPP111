@@ -1,62 +1,99 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { FC, useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog } from '@/components/ui/dialog';
+import { EventForm } from './EventForm';
 import { CalendarEvent } from '@/types/calendar';
 
-export const CalendarView = () => {
-	const [selectedLevel, setSelectedLevel] = useState<string>('CALENDAR');
-	const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
-	const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
+interface ViewEvent extends Omit<CalendarEvent, 'startDate' | 'endDate'> {
+	start: Date;
+	end: Date;
+	type: 'class' | 'class_group' | 'timetable';
+	entityId: string;
+}
+
+interface CalendarViewProps {
+	entityType: 'class' | 'class_group' | 'timetable';
+	entityId: string;
+	events?: ViewEvent[];
+	inheritedEvents?: ViewEvent[];
+	showPeriods?: boolean;
+	onEventAdd?: (event: ViewEvent) => void;
+	onEventEdit?: (event: ViewEvent) => void;
+}
+
+export const CalendarView: FC<CalendarViewProps> = ({
+	entityType,
+	entityId,
+	events = [],
+	inheritedEvents = [],
+	showPeriods,
+	onEventAdd,
+	onEventEdit
+}) => {
+	const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+	const [calendarView, setCalendarView] = useState<'day' | 'week' | 'month'>('month');
+	const [showEventDialog, setShowEventDialog] = useState(false);
+	const [selectedEvent, setSelectedEvent] = useState<ViewEvent | undefined>();
+
+	const handleDateSelect = (date: Date) => {
+		setSelectedDate(date);
+		if (onEventAdd) {
+			setShowEventDialog(true);
+			setSelectedEvent(undefined);
+		}
+	};
+
 
 	return (
-		<div className="space-y-6">
-			<div className="flex items-center justify-between">
-				<h2 className="text-3xl font-bold tracking-tight">Calendar Management</h2>
-				<Button onClick={() => setIsCreateEventOpen(true)}>Create Event</Button>
+		<Card className="p-4">
+			<div className="flex justify-between items-center mb-4">
+				<Select value={calendarView} onValueChange={(v: 'day' | 'week' | 'month') => setCalendarView(v)}>
+					<SelectTrigger className="w-32">
+						<SelectValue placeholder="View" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="day">Day</SelectItem>
+						<SelectItem value="week">Week</SelectItem>
+						<SelectItem value="month">Month</SelectItem>
+					</SelectContent>
+				</Select>
 			</div>
 
-			<Card>
-				<CardHeader>
-					<CardTitle>View Settings</CardTitle>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="flex space-x-4">
-						<Select value={selectedLevel} onValueChange={setSelectedLevel}>
-							<SelectTrigger className="w-[200px]">
-								<SelectValue placeholder="Select Level" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="CALENDAR">Calendar</SelectItem>
-								<SelectItem value="PROGRAM">Program</SelectItem>
-								<SelectItem value="CLASS_GROUP">Class Group</SelectItem>
-								<SelectItem value="CLASS">Class</SelectItem>
-							</SelectContent>
-						</Select>
-
-						{selectedLevel !== 'CALENDAR' && (
-							<EntitySelector 
-								level={selectedLevel} 
-								value={selectedEntity}
-								onChange={setSelectedEntity}
-							/>
-						)}
-					</div>
-				</CardContent>
-			</Card>
-
-			<CalendarGrid 
-				level={selectedLevel}
-				entityId={selectedEntity}
+			<Calendar
+				mode="single"
+				selected={selectedDate}
+				onSelect={(date: Date | undefined) => date && handleDateSelect(date)}
+				className="rounded-md border"
+				required={false}
 			/>
 
-			<EventDialog 
-				open={isCreateEventOpen}
-				onOpenChange={setIsCreateEventOpen}
-				level={selectedLevel}
-				entityId={selectedEntity}
-			/>
-		</div>
+			{showEventDialog && (
+				<Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
+					<EventForm
+						event={selectedEvent}
+						entityType={entityType}
+						entityId={entityId}
+						onSave={(data) => {
+						  const newEvent = {
+							...data,
+							id: crypto.randomUUID(),
+							type: entityType,
+							entityId,
+							start: data.start,
+							end: data.end,
+						  };
+						  if (selectedEvent && onEventEdit) {
+							onEventEdit(newEvent as ViewEvent);
+						  } else if (onEventAdd) {
+							onEventAdd(newEvent as ViewEvent);
+						  }
+						}}
+						onClose={() => setShowEventDialog(false)}
+					/>
+				</Dialog>
+			)}
+		</Card>
 	);
 };
