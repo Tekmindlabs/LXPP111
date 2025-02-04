@@ -1,13 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { Course, Subject, CourseStructureType } from '../../../types/course-management';
-import { Button } from '../../ui/button';
-import { Input } from '../../ui/input';
-import { Select } from '../../ui/select';
-import { Card } from '../../ui/card';
+import { Course, Subject, CourseStructureType } from '@/types/course-management';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
+import { toast } from 'sonner';
 
-export const CourseBuilder = () => {
+interface CourseBuilderProps {
+	onCourseCreated?: (course: Course) => void;
+}
+
+export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 	const [courseData, setCourseData] = useState<Partial<Course>>({
 		name: '',
 		academicYear: '',
@@ -26,7 +31,32 @@ export const CourseBuilder = () => {
 
 	const handleCourseSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		// Implementation will be added
+		
+		if (!courseData.name || !courseData.academicYear || !courseData.program?.name) {
+			toast.error('Please fill in all required fields');
+			return;
+		}
+
+		const newCourse: Course = {
+			id: crypto.randomUUID(),
+			...courseData as Course
+		};
+
+		try {
+			// TODO: Add API call to create course
+			onCourseCreated?.(newCourse);
+			toast.success('Course created successfully');
+			
+			// Reset form
+			setCourseData({
+				name: '',
+				academicYear: '',
+				program: { id: '', name: '' },
+				subjects: []
+			});
+		} catch (error) {
+			toast.error('Failed to create course');
+		}
 	};
 
 	const handleAddSubject = () => {
@@ -106,9 +136,14 @@ export const CourseBuilder = () => {
 									}))
 								}
 							>
-								<option value="CHAPTER">Chapter Based</option>
-								<option value="BLOCK">Block Based</option>
-								<option value="WEEKLY">Weekly Based</option>
+								<SelectTrigger>
+									<SelectValue placeholder="Select structure type" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="CHAPTER">Chapter Based</SelectItem>
+									<SelectItem value="BLOCK">Block Based</SelectItem>
+									<SelectItem value="WEEKLY">Weekly Based</SelectItem>
+								</SelectContent>
 							</Select>
 							<Button type="button" onClick={handleAddSubject}>Add Subject</Button>
 						</div>
