@@ -21,7 +21,6 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 		name: '',
 		academicYear: '',
 		classGroupId: '',
-		calendarId: '',
 		subjects: []
 	});
 
@@ -44,56 +43,70 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 			return;
 		}
 
+		if (!courseData.subjects?.length) {
+			toast.error('Please add at least one subject before creating the course');
+			return;
+		}
+
 		try {
+			// First create all subjects
+			const createdSubjects = await Promise.all(
+				courseData.subjects.map(subject => 
+					courseManagementService.createSubject({
+						name: subject.name,
+						description: subject.description || '',
+						courseStructure: subject.courseStructure
+					})
+				)
+			);
+
+			// Then create the course with the created subject IDs
 			const newCourse = await courseManagementService.createCourse({
 				name: courseData.name,
 				academicYear: courseData.academicYear,
-				classGroupId: courseData.classGroupId
+				classGroupId: courseData.classGroupId,
+				subjectIds: createdSubjects.map(subject => subject.id)
 			});
 
-			if (courseData.subjects?.length) {
-				for (const subject of courseData.subjects) {
-					await courseManagementService.addSubjectToCourse(newCourse.id, {
-						name: subject.name,
-						description: subject.description,
-						courseStructure: subject.courseStructure
-					});
-				}
-			}
-
+			toast.success('Course and subjects created successfully');
 			onCourseCreated?.(newCourse);
-			toast.success('Course created successfully');
 			
+			// Reset form
 			setCourseData({
 				name: '',
 				academicYear: '',
 				classGroupId: '',
-				calendarId: '',
 				subjects: []
 			});
 		} catch (error) {
-			toast.error('Failed to create course');
+			console.error('Error creating course:', error);
+			toast.error('Failed to create course and subjects');
 		}
 	};
 
 	const handleAddSubject = () => {
-		if (currentSubject.name) {
-			setCourseData(prev => ({
-				...prev,
-				subjects: [...(prev.subjects || []), currentSubject as Subject]
-			}));
-			setCurrentSubject({
-				name: '',
-				description: '',
-				courseStructure: {
-					type: 'CHAPTER',
-					units: []
-				}
-			});
+		if (!currentSubject.name) {
+			toast.error('Subject name is required');
+			return;
 		}
+
+		setCourseData(prev => ({
+			...prev,
+			subjects: [...(prev.subjects || []), currentSubject as Subject]
+		}));
+		
+		setCurrentSubject({
+			name: '',
+			description: '',
+			courseStructure: {
+				type: 'CHAPTER',
+				units: []
+			}
+		});
+		
+		toast.success('Subject added successfully');
 	};
 
-	const selectedClassGroup = classGroups?.find(group => group.id === courseData.classGroupId);
 
 	return (
 		<div className="space-y-6 p-6">
@@ -125,11 +138,9 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 						<Select
 							value={courseData.classGroupId}
 							onValueChange={(value) => {
-								const selectedGroup = classGroups?.find(group => group.id === value);
 								setCourseData(prev => ({
 									...prev,
-									classGroupId: value,
-									calendarId: selectedGroup?.calendar?.id || ''
+									classGroupId: value
 								}));
 							}}
 						>
@@ -145,17 +156,6 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 							</SelectContent>
 						</Select>
 					</div>
-
-					{selectedClassGroup?.calendar && (
-						<div>
-							<label className="block text-sm font-medium mb-1">Associated Calendar</label>
-							<Input
-								value={selectedClassGroup.calendar.name}
-								disabled
-								placeholder="Calendar"
-							/>
-						</div>
-					)}
 
 					<div className="border-t pt-4 mt-4">
 						<h3 className="text-lg font-semibold mb-3">Add Subject</h3>
@@ -209,4 +209,5 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 			</Card>
 		</div>
 	);
+
 };

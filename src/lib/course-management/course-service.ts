@@ -313,12 +313,40 @@ export class CourseManagementService {
 
 
 
+	async createSubject(subjectData: {
+		name: string;
+		description: string;
+		courseStructure: CourseStructure;
+	}): Promise<Subject> {
+		const subject = await db.subject.create({
+			data: {
+				name: subjectData.name,
+				description: subjectData.description,
+				code: `SUB-${Date.now()}`,
+				courseStructure: serializeJson(subjectData.courseStructure)
+			},
+			include: {
+				teachers: true,
+				activities: true
+			}
+		});
+
+		return {
+			id: subject.id,
+			name: subject.name,
+			description: subject.description || undefined,
+			courseStructure: parseCourseStructure(subject.courseStructure),
+			teachers: [],
+			activities: []
+		};
+	}
+
 	async createCourse(courseData: {
 		name: string;
 		academicYear: string;
 		classGroupId: string;
+		subjectIds: string[];
 	}): Promise<Course> {
-		// First get the class group to get its program ID
 		const classGroup = await db.classGroup.findUnique({
 			where: { id: courseData.classGroupId },
 			include: { program: true }
@@ -335,6 +363,9 @@ export class CourseManagementService {
 				programId: classGroup.programId,
 				classGroups: {
 					connect: { id: courseData.classGroupId }
+				},
+				subjects: {
+					connect: courseData.subjectIds.map(id => ({ id }))
 				}
 			},
 			include: {
