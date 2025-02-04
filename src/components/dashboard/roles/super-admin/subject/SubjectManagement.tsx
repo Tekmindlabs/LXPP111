@@ -14,10 +14,9 @@ import { SubjectForm } from "./SubjectForm";
 
 interface SearchFilters {
 	search: string;
-	classGroupId?: string;
-	programId?: string;
-	status?: Status;
+	classGroupIds?: string[];  // Updated to match router input type
 	teacherId?: string;
+	status?: Status;
 }
 
 export const SubjectManagement = () => {
@@ -25,15 +24,13 @@ export const SubjectManagement = () => {
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [filters, setFilters] = useState<SearchFilters>({
 		search: "",
+		classGroupIds: [],
 	});
 
 	const { data: subjects, isLoading } = api.subject.searchSubjects.useQuery(filters);
 	const { data: classGroups } = api.classGroup.getAllClassGroups.useQuery();
-	const { data: programs } = api.program.getAll.useQuery({
-		page: 1,
-		pageSize: 10
-	});
 	const { data: teachers } = api.subject.getAvailableTeachers.useQuery();
+
 
 	const handleCreate = () => {
 		setSelectedSubjectId(null);
@@ -74,24 +71,12 @@ export const SubjectManagement = () => {
 								className="max-w-sm"
 							/>
 							<Select
-								value={filters.programId || "all"}
-								onValueChange={(value) => setFilters({ ...filters, programId: value === "all" ? undefined : value })}
-							>
-								<SelectTrigger className="w-[200px]">
-									<SelectValue placeholder="Filter by Program" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All Programs</SelectItem>
-									{programs?.programs?.map((program: any) => (
-										<SelectItem key={program.id} value={program.id}>
-											{program.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-							<Select
-								value={filters.classGroupId || "all"}
-								onValueChange={(value) => setFilters({ ...filters, classGroupId: value === "all" ? undefined : value })}
+
+								value={filters.classGroupIds?.[0] || "all"}
+								onValueChange={(value) => setFilters({ 
+									...filters, 
+									classGroupIds: value === "all" ? [] : [value] 
+								})}
 							>
 								<SelectTrigger className="w-[200px]">
 									<SelectValue placeholder="Filter by Class Group" />
@@ -142,7 +127,15 @@ export const SubjectManagement = () => {
 
 					<div className="space-y-4">
 						<SubjectList 
-						  subjects={subjects || []} 
+						  subjects={subjects?.map(subject => ({
+							...subject,
+							classGroups: subject.classGroups.map(group => ({
+								name: group.name,
+								program: {
+									name: group.program.name || ''  // Provide default empty string
+								}
+							}))
+						})) || []}
 						  onSelect={handleEdit}
 						/>
 						<Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>

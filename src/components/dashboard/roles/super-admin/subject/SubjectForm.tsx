@@ -9,6 +9,7 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { TRPCClientErrorLike } from '@trpc/client';
 
 import { api } from "@/utils/api";
 import { Status } from "@prisma/client";
@@ -48,7 +49,7 @@ export const SubjectForm = ({
 	const { toast } = useToast();
 	const utils = api.useContext();
 
-	const createMutation = api.subject.createSubject.useMutation({
+	const createMutation = api.subject.create.useMutation({
 		onSuccess: () => {
 			toast({
 				title: "Success",
@@ -58,7 +59,7 @@ export const SubjectForm = ({
 			resetForm();
 			onSuccess();
 		},
-		onError: (error) => {
+		onError: (error: TRPCClientErrorLike<any>) => {
 			toast({
 				title: "Error",
 				description: error.message,
@@ -67,7 +68,7 @@ export const SubjectForm = ({
 		},
 	});
 
-	const updateMutation = api.subject.updateSubject.useMutation({
+	const updateMutation = api.subject.update.useMutation({
 		onSuccess: () => {
 			toast({
 				title: "Success",
@@ -77,7 +78,7 @@ export const SubjectForm = ({
 			resetForm();
 			onSuccess();
 		},
-		onError: (error) => {
+		onError: (error: TRPCClientErrorLike<any>) => {
 			toast({
 				title: "Error",
 				description: error.message,
@@ -148,7 +149,7 @@ export const SubjectForm = ({
 					<Label>Class Groups</Label>
 					<MultiSelect
 						options={classGroups.map(group => ({
-							label: `${group.name} (${group.program.name})`,
+							label: group.name,
 							value: group.id,
 						}))}
 						value={formData.classGroupIds}
