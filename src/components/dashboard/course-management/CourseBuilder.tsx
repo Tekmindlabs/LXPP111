@@ -19,10 +19,10 @@ const courseManagementService = new CourseManagementService();
 export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 	const [courseData, setCourseData] = useState<Partial<Course>>({
 		name: '',
-		academicYear: '',
 		classGroupId: '',
 		subjects: []
 	});
+
 
 	const { data: classGroups } = api.classGroup.getAllClassGroups.useQuery();
 
@@ -38,7 +38,7 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 	const handleCourseSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		
-		if (!courseData.name || !courseData.academicYear || !courseData.classGroupId) {
+		if (!courseData.name || !courseData.classGroupId) {
 			toast.error('Please fill in all required fields');
 			return;
 		}
@@ -63,7 +63,7 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 			// Then create the course with the created subject IDs
 			const newCourse = await courseManagementService.createCourse({
 				name: courseData.name,
-				academicYear: courseData.academicYear,
+				academicYear: new Date().getFullYear().toString(),
 				classGroupId: courseData.classGroupId,
 				subjectIds: createdSubjects.map(subject => subject.id)
 			});
@@ -74,10 +74,10 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 			// Reset form
 			setCourseData({
 				name: '',
-				academicYear: '',
 				classGroupId: '',
 				subjects: []
 			});
+
 		} catch (error) {
 			console.error('Error creating course:', error);
 			toast.error('Failed to create course and subjects');
@@ -123,15 +123,8 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 						/>
 					</div>
 					
-					<div>
-						<label className="block text-sm font-medium mb-1">Academic Year</label>
-						<Input
-							value={courseData.academicYear}
-							onChange={(e) => setCourseData(prev => ({ ...prev, academicYear: e.target.value }))}
-							placeholder="YYYY-YYYY"
-							required
-						/>
-					</div>
+
+
 
 					<div>
 						<label className="block text-sm font-medium mb-1">Class Group</label>
