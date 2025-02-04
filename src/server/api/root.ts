@@ -1,6 +1,7 @@
 import { createTRPCRouter } from "@/server/api/trpc";
 import { userRouter } from "./routers/user";
 import { roleRouter } from "./routers/role";
+import { gradebookRouter } from "./routers/gradebook";
 import { attendanceRouter } from "./routers/attendance";
 import { permissionRouter } from "./routers/permission";
 import { knowledgeBaseRouter } from "./routers/knowledge-base";
@@ -43,6 +44,7 @@ export const appRouter = createTRPCRouter({
   knowledgeBase: knowledgeBaseRouter,
   workspace: workspaceRouter,
   attendance: attendanceRouter,
+  gradebook: gradebookRouter,
 });
 
 export type AppRouter = typeof appRouter;
