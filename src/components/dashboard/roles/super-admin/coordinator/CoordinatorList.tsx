@@ -14,10 +14,10 @@ interface Coordinator {
 		programs: {
 			id: string;
 			name: string;
-			level: string;
 		}[];
 	};
 }
+
 
 interface CoordinatorListProps {
 	coordinators: Coordinator[];
@@ -46,7 +46,7 @@ export const CoordinatorList = ({ coordinators, onSelect }: CoordinatorListProps
 								<div className="flex flex-wrap gap-2">
 									{coordinator.coordinatorProfile?.programs.map((program) => (
 										<Badge key={program.id} variant="secondary">
-											{program.name} ({program.level})
+											{program.name}
 										</Badge>
 									))}
 								</div>

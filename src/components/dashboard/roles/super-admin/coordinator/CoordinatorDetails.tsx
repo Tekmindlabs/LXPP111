@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/utils/api";
+import Link from "next/link";
 
 interface CoordinatorDetailsProps {
 	coordinatorId: string;
@@ -18,7 +19,12 @@ export const CoordinatorDetails = ({ coordinatorId, onBack }: CoordinatorDetails
 
 	return (
 		<div className="space-y-4">
-			<Button onClick={onBack} variant="outline">Back to List</Button>
+			<div className="flex justify-between items-center">
+				<Button onClick={onBack} variant="outline">Back to List</Button>
+				<Link href="/dashboard/coordinator/assignments">
+					<Button variant="default">Manage Program Assignments</Button>
+				</Link>
+			</div>
 			
 			<Card>
 				<CardHeader>
@@ -45,9 +51,9 @@ export const CoordinatorDetails = ({ coordinatorId, onBack }: CoordinatorDetails
 					<div>
 						<h3 className="font-semibold">Assigned Programs</h3>
 						<div className="flex flex-wrap gap-2 mt-2">
-							{coordinator.coordinatorProfile?.programs.map((program: { id: string; name: string; level: string }) => (
+							{coordinator.coordinatorProfile?.programs.map((program) => (
 								<Badge key={program.id} variant="outline">
-									{program.name} ({program.level})
+									{program.name}
 								</Badge>
 							))}
 						</div>

@@ -1,47 +1,47 @@
 -- Create Role and Permission tables
-CREATE TABLE "Role" (
+CREATE TABLE "roles" (
 	"id" TEXT NOT NULL,
 	"name" TEXT NOT NULL,
 	"description" TEXT,
 	"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	"updatedAt" TIMESTAMP(3) NOT NULL,
-	CONSTRAINT "Role_pkey" PRIMARY KEY ("id")
+	CONSTRAINT "roles_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE "Permission" (
+CREATE TABLE "permissions" (
 	"id" TEXT NOT NULL,
 	"name" TEXT NOT NULL,
 	"description" TEXT,
 	"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	"updatedAt" TIMESTAMP(3) NOT NULL,
-	CONSTRAINT "Permission_pkey" PRIMARY KEY ("id")
+	CONSTRAINT "permissions_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE "RolePermission" (
+CREATE TABLE "role_permissions" (
 	"id" TEXT NOT NULL,
 	"roleId" TEXT NOT NULL,
 	"permissionId" TEXT NOT NULL,
 	"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	"updatedAt" TIMESTAMP(3) NOT NULL,
-	CONSTRAINT "RolePermission_pkey" PRIMARY KEY ("id")
+	CONSTRAINT "role_permissions_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE "UserRole" (
+CREATE TABLE "user_roles" (
 	"id" TEXT NOT NULL,
 	"userId" TEXT NOT NULL,
 	"roleId" TEXT NOT NULL,
 	"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	"updatedAt" TIMESTAMP(3) NOT NULL,
-	CONSTRAINT "UserRole_pkey" PRIMARY KEY ("id")
+	CONSTRAINT "user_roles_pkey" PRIMARY KEY ("id")
 );
 
 -- Add unique constraints
-ALTER TABLE "Role" ADD CONSTRAINT "Role_name_key" UNIQUE ("name");
-ALTER TABLE "Permission" ADD CONSTRAINT "Permission_name_key" UNIQUE ("name");
-ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_permissionId_key" UNIQUE ("roleId", "permissionId");
-ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_userId_roleId_key" UNIQUE ("userId", "roleId");
+ALTER TABLE "roles" ADD CONSTRAINT "roles_name_key" UNIQUE ("name");
+ALTER TABLE "permissions" ADD CONSTRAINT "permissions_name_key" UNIQUE ("name");
+ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_roleId_permissionId_key" UNIQUE ("roleId", "permissionId");
+ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_userId_roleId_key" UNIQUE ("userId", "roleId");
 
 -- Add foreign key constraints
-ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "Permission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "permissions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;

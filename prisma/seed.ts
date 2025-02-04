@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 async function main() {
   // First, create the roles with their permissions
   const roles = await Promise.all([
-    prisma.role.upsert({
+    prisma.roles.upsert({
       where: { name: DefaultRoles.SUPER_ADMIN },
       update: {},
       create: {
@@ -119,7 +119,7 @@ async function main() {
     }
 
     // Updated user creation to include userType
-    const user = await prisma.user.upsert({
+    const user = await prisma.users.upsert({
       where: { email: demoUser.email },
       update: {},
       create: {
@@ -146,7 +146,7 @@ async function main() {
     // Create or update corresponding profile based on role
     switch (demoUser.role) {
       case DefaultRoles.TEACHER:
-      await prisma.teacherProfile.upsert({
+        await prisma.teacherProfiles.upsert({
         where: { userId: user.id },
         update: { specialization: 'General' },
         create: {
@@ -156,7 +156,7 @@ async function main() {
       });
       break;
       case DefaultRoles.STUDENT:
-      await prisma.studentProfile.upsert({
+        await prisma.studentProfiles.upsert({
         where: { userId: user.id },
         update: {},
         create: {
@@ -165,7 +165,7 @@ async function main() {
       });
       break;
       case DefaultRoles.PARENT:
-      await prisma.parentProfile.upsert({
+        await prisma.parentProfiles.upsert({
         where: { userId: user.id },
         update: {},
         create: {
@@ -174,7 +174,7 @@ async function main() {
       });
       break;
       case DefaultRoles.PROGRAM_COORDINATOR:
-      await prisma.coordinatorProfile.upsert({
+        await prisma.coordinatorProfiles.upsert({
         where: { userId: user.id },
         update: {},
         create: {

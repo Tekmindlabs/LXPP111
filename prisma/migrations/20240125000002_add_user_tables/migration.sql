@@ -2,7 +2,7 @@
 CREATE TYPE "UserType" AS ENUM ('ADMIN', 'COORDINATOR', 'TEACHER', 'STUDENT', 'PARENT');
 
 -- Create User table
-CREATE TABLE "User" (
+CREATE TABLE "users" (
 	"id" TEXT NOT NULL,
 	"name" TEXT,
 	"email" TEXT,
@@ -15,10 +15,10 @@ CREATE TABLE "User" (
 	"updatedAt" TIMESTAMP(3) NOT NULL,
 	"deleted" TIMESTAMP(3),
 	"dataRetentionDate" TIMESTAMP(3),
-	CONSTRAINT "User_pkey" PRIMARY KEY ("id"),
-	CONSTRAINT "User_email_key" UNIQUE ("email")
+	CONSTRAINT "users_pkey" PRIMARY KEY ("id"),
+	CONSTRAINT "users_email_key" UNIQUE ("email")
 );
 
--- Update UserRole foreign key
-ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_userId_fkey" 
-	FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- Update user_roles foreign key
+ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_userId_fkey" 
+	FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

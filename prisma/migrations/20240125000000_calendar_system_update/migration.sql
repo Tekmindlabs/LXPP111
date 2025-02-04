@@ -6,7 +6,7 @@ CREATE TYPE "Priority" AS ENUM ('HIGH', 'MEDIUM', 'LOW');
 CREATE TYPE "EventType" AS ENUM ('ACADEMIC', 'HOLIDAY', 'EXAM', 'ACTIVITY', 'OTHER');
 
 -- Create tables
-CREATE TABLE "Calendar" (
+CREATE TABLE "calendars" (
 	"id" TEXT NOT NULL,
 	"name" TEXT NOT NULL,
 	"description" TEXT,
@@ -19,10 +19,10 @@ CREATE TABLE "Calendar" (
 	"metadata" JSONB,
 	"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	"updatedAt" TIMESTAMP(3) NOT NULL,
-	CONSTRAINT "Calendar_pkey" PRIMARY KEY ("id")
+	CONSTRAINT "calendars_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE "Event" (
+CREATE TABLE "events" (
 	"id" TEXT NOT NULL,
 	"title" TEXT NOT NULL,
 	"description" TEXT,
@@ -37,10 +37,10 @@ CREATE TABLE "Event" (
 	"metadata" JSONB,
 	"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	"updatedAt" TIMESTAMP(3) NOT NULL,
-	CONSTRAINT "Event_pkey" PRIMARY KEY ("id")
+	CONSTRAINT "events_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE "Program" (
+CREATE TABLE "programs" (
 	"id" TEXT NOT NULL,
 	"name" TEXT NOT NULL,
 	"description" TEXT,
@@ -48,10 +48,10 @@ CREATE TABLE "Program" (
 	"calendarId" TEXT NOT NULL,
 	"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	"updatedAt" TIMESTAMP(3) NOT NULL,
-	CONSTRAINT "Program_pkey" PRIMARY KEY ("id")
+	CONSTRAINT "programs_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE "Term" (
+CREATE TABLE "terms" (
 	"id" TEXT NOT NULL,
 	"name" TEXT NOT NULL,
 	"calendarId" TEXT NOT NULL,
@@ -60,30 +60,30 @@ CREATE TABLE "Term" (
 	"status" "Status" NOT NULL DEFAULT 'ACTIVE',
 	"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	"updatedAt" TIMESTAMP(3) NOT NULL,
-	CONSTRAINT "Term_pkey" PRIMARY KEY ("id")
+	CONSTRAINT "terms_pkey" PRIMARY KEY ("id")
 );
 
 -- Add foreign key constraints
-ALTER TABLE "Event" ADD CONSTRAINT "Event_calendarId_fkey" 
-	FOREIGN KEY ("calendarId") REFERENCES "Calendar"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "events" ADD CONSTRAINT "events_calendarId_fkey" 
+	FOREIGN KEY ("calendarId") REFERENCES "calendars"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE "Program" ADD CONSTRAINT "Program_calendarId_fkey" 
-	FOREIGN KEY ("calendarId") REFERENCES "Calendar"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "programs" ADD CONSTRAINT "programs_calendarId_fkey" 
+	FOREIGN KEY ("calendarId") REFERENCES "calendars"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
-ALTER TABLE "Term" ADD CONSTRAINT "Term_calendarId_fkey" 
-	FOREIGN KEY ("calendarId") REFERENCES "Calendar"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "terms" ADD CONSTRAINT "terms_calendarId_fkey" 
+	FOREIGN KEY ("calendarId") REFERENCES "calendars"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- Add unique constraints
-ALTER TABLE "Calendar" ADD CONSTRAINT "Calendar_name_type_key" UNIQUE ("name", "type");
-ALTER TABLE "Program" ADD CONSTRAINT "Program_name_key" UNIQUE ("name");
-ALTER TABLE "Term" ADD CONSTRAINT "Term_name_calendarId_key" UNIQUE ("name", "calendarId");
-ALTER TABLE "Event" ADD CONSTRAINT "Event_title_calendarId_key" UNIQUE ("title", "calendarId");
+ALTER TABLE "calendars" ADD CONSTRAINT "calendars_name_type_key" UNIQUE ("name", "type");
+ALTER TABLE "programs" ADD CONSTRAINT "programs_name_key" UNIQUE ("name");
+ALTER TABLE "terms" ADD CONSTRAINT "terms_name_calendarId_key" UNIQUE ("name", "calendarId");
+ALTER TABLE "events" ADD CONSTRAINT "events_title_calendarId_key" UNIQUE ("title", "calendarId");
 
 -- Create indexes
-CREATE INDEX "Calendar_type_idx" ON "Calendar"("type");
-CREATE INDEX "Calendar_status_idx" ON "Calendar"("status");
-CREATE INDEX "Calendar_isDefault_idx" ON "Calendar"("isDefault");
-CREATE INDEX "Event_calendarId_idx" ON "Event"("calendarId");
-CREATE INDEX "Event_eventType_idx" ON "Event"("eventType");
-CREATE INDEX "Event_status_idx" ON "Event"("status");
-CREATE INDEX "Event_startDate_endDate_idx" ON "Event"("startDate", "endDate");
+CREATE INDEX "calendars_type_idx" ON "calendars"("type");
+CREATE INDEX "calendars_status_idx" ON "calendars"("status");
+CREATE INDEX "calendars_isDefault_idx" ON "calendars"("isDefault");
+CREATE INDEX "events_calendarId_idx" ON "events"("calendarId");
+CREATE INDEX "events_eventType_idx" ON "events"("eventType");
+CREATE INDEX "events_status_idx" ON "events"("status");
+CREATE INDEX "events_startDate_endDate_idx" ON "events"("startDate", "endDate");

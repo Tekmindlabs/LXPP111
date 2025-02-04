@@ -9,15 +9,15 @@ async function createUsers() {
   const roleNames = ['ADMIN', 'TEACHER', 'STUDENT'];
   const roles = await Promise.all(
     roleNames.map(async (name) => {
-      const existingRole = await prisma.role.findUnique({
+        const existingRole = await prisma.roles.findUnique({
         where: { name }
-      });
-      
-      if (existingRole) {
+        });
+        
+        if (existingRole) {
         return existingRole;
-      }
-      
-      return prisma.role.create({
+        }
+        
+        return prisma.roles.create({
         data: {
           name,
           description: `${name.charAt(0) + name.slice(1).toLowerCase()} Role`
@@ -30,12 +30,12 @@ async function createUsers() {
   // Create users with profiles if they don't exist
   const users = await Promise.all([
     // Admin
-    prisma.user.upsert({
+    prisma.users.upsert({
       where: { email: 'admin@school.com' },
       update: {},
       create: {
-        name: 'Admin User',
-        email: 'admin@school.com',
+      name: 'Admin User',
+      email: 'admin@school.com',
         userType: UserType.ADMIN,
         status: Status.ACTIVE,
         userRoles: {
@@ -46,85 +46,85 @@ async function createUsers() {
       }
     }),
     // Teachers
-    prisma.user.upsert({
+    prisma.users.upsert({
       where: { email: 'teacher1@school.com' },
       update: {},
       create: {
-        name: 'John Teacher',
-        email: 'teacher1@school.com',
-        userType: UserType.TEACHER,
-        status: Status.ACTIVE,
-        teacherProfile: {
-          create: {
-            specialization: 'Mathematics'
-          }
-        },
-        userRoles: {
-          create: {
-            roleId: roles[1].id
-          }
+      name: 'John Teacher',
+      email: 'teacher1@school.com',
+      userType: UserType.TEACHER,
+      status: Status.ACTIVE,
+      teacherProfile: {
+        create: {
+        specialization: 'Mathematics'
+        }
+      },
+      userRoles: {
+        create: {
+        roleId: roles[1].id
         }
       }
+      }
     }),
-    prisma.user.upsert({
+    prisma.users.upsert({
       where: { email: 'teacher2@school.com' },
       update: {},
       create: {
-        name: 'Jane Teacher',
-        email: 'teacher2@school.com',
-        userType: UserType.TEACHER,
-        status: Status.ACTIVE,
-        teacherProfile: {
-          create: {
-            specialization: 'Science'
-          }
-        },
-        userRoles: {
-          create: {
-            roleId: roles[1].id
-          }
+      name: 'Jane Teacher',
+      email: 'teacher2@school.com',
+      userType: UserType.TEACHER,
+      status: Status.ACTIVE,
+      teacherProfile: {
+        create: {
+        specialization: 'Science'
         }
+      },
+      userRoles: {
+        create: {
+        roleId: roles[1].id
+        }
+      }
       }
     }),
     // Students
-    prisma.user.upsert({
+    prisma.users.upsert({
       where: { email: 'student1@school.com' },
       update: {},
       create: {
-        name: 'Student One',
-        email: 'student1@school.com',
-        userType: UserType.STUDENT,
-        status: Status.ACTIVE,
-        studentProfile: {
-          create: {
-            dateOfBirth: new Date('2010-01-01')
-          }
-        },
-        userRoles: {
-          create: {
-            roleId: roles[2].id
-          }
+      name: 'Student One',
+      email: 'student1@school.com',
+      userType: UserType.STUDENT,
+      status: Status.ACTIVE,
+      studentProfile: {
+        create: {
+        dateOfBirth: new Date('2010-01-01')
+        }
+      },
+      userRoles: {
+        create: {
+        roleId: roles[2].id
         }
       }
+      }
     }),
-    prisma.user.upsert({
+    prisma.users.upsert({
       where: { email: 'student2@school.com' },
       update: {},
       create: {
-        name: 'Student Two',
-        email: 'student2@school.com',
-        userType: UserType.STUDENT,
-        status: Status.ACTIVE,
-        studentProfile: {
-          create: {
-            dateOfBirth: new Date('2010-06-15')
-          }
-        },
-        userRoles: {
-          create: {
-            roleId: roles[2].id
-          }
+      name: 'Student Two',
+      email: 'student2@school.com',
+      userType: UserType.STUDENT,
+      status: Status.ACTIVE,
+      studentProfile: {
+        create: {
+        dateOfBirth: new Date('2010-06-15')
         }
+      },
+      userRoles: {
+        create: {
+        roleId: roles[2].id
+        }
+      }
       }
     })
   ]);
@@ -139,12 +139,12 @@ async function seedDemoData() {
 
     // 1. Create Demo Calendar
     console.log('Creating demo calendar...');
-    const calendar = await prisma.calendar.upsert({
+    const calendar = await prisma.calendars.upsert({
       where: {
-        name_type: {
-          name: "2024-2025 Academic Calendar",
-          type: "PRIMARY"
-        }
+      name_type: {
+        name: "2024-2025 Academic Calendar",
+        type: "PRIMARY"
+      }
       },
       update: {
       description: 'Main academic calendar for 2024-2025',
@@ -180,14 +180,14 @@ async function seedDemoData() {
     console.log('Creating demo events...');
     await Promise.all([
       // Academic Events
-      prisma.event.upsert({
-      where: {
+        prisma.events.upsert({
+        where: {
         title_calendarId_eventType: {
         title: 'First Day of School',
         calendarId: calendar.id,
         eventType: EventType.ACADEMIC
         }
-      },
+        },
       update: {
         description: 'Opening ceremony and first day of classes',
         eventType: EventType.ACADEMIC,
@@ -419,7 +419,7 @@ async function seedDemoData() {
     // 3. Create Demo Terms with Grading Periods and Weeks
     console.log('Creating demo terms...');
     const terms = await Promise.all([
-        prisma.term.upsert({
+        prisma.terms.upsert({
         where: {
         name_calendarId: {
           name: "Fall Semester 2024",
@@ -574,13 +574,13 @@ async function seedDemoData() {
     // 4. Create Demo Programs
     console.log('Creating demo programs...');
     const programs = await Promise.all([
-      prisma.program.upsert({
-      where: { name: 'Elementary Education' },
-      update: {
+        prisma.programs.upsert({
+        where: { name: 'Elementary Education' },
+        update: {
         description: 'K-6 Elementary Education Program',
         status: Status.ACTIVE,
         calendarId: calendar.id,
-      },
+        },
       create: {
         name: 'Elementary Education',
         description: 'K-6 Elementary Education Program',
@@ -824,7 +824,7 @@ async function seedDemoData() {
     );
 
     // Add teacher assignments before creating periods
-    const teachers = await prisma.teacherProfile.findMany({
+    const teachers = await prisma.teacherProfiles.findMany({
       include: {
       user: true
       }
@@ -1076,7 +1076,7 @@ async function seedDemoData() {
     ]);
 
     // Add student assignments
-    const students = await prisma.studentProfile.findMany();
+    const students = await prisma.studentProfiles.findMany();
     if (students.length > 0) {
       console.log('Creating student assignments...');
       await Promise.all(
