@@ -39,6 +39,11 @@ const menuItems: MenuItem[] = [
     icon: LuGraduationCap,
   },
   {
+    title: "Course Management",
+    href: "/dashboard/[role]/course-management",
+    icon: LuBook,
+  },
+  {
     title: "Academic Calendar",
     href: "/dashboard/[role]/academic-calendar",
     icon: LuCalendar,

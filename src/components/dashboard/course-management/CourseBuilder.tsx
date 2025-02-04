@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Course, Subject, CourseStructureType } from '@/types/course-management';
+import { CourseManagementService } from '@/lib/course-management/course-service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,6 +12,8 @@ import { toast } from 'sonner';
 interface CourseBuilderProps {
 	onCourseCreated?: (course: Course) => void;
 }
+
+const courseManagementService = new CourseManagementService();
 
 export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 	const [courseData, setCourseData] = useState<Partial<Course>>({
@@ -37,13 +40,24 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 			return;
 		}
 
-		const newCourse: Course = {
-			id: crypto.randomUUID(),
-			...courseData as Course
-		};
-
 		try {
-			// TODO: Add API call to create course
+			const newCourse = await courseManagementService.createCourse({
+				name: courseData.name,
+				academicYear: courseData.academicYear,
+				programId: courseData.program.id || crypto.randomUUID()
+			});
+
+			// Add subjects if any
+			if (courseData.subjects?.length) {
+				for (const subject of courseData.subjects) {
+					await courseManagementService.addSubjectToCourse(newCourse.id, {
+						name: subject.name,
+						description: subject.description,
+						courseStructure: subject.courseStructure
+					});
+				}
+			}
+
 			onCourseCreated?.(newCourse);
 			toast.success('Course created successfully');
 			

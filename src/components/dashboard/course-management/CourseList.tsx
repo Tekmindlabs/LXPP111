@@ -5,14 +5,39 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { Course } from '@/types/course-management';
 
 interface CourseListProps {
 	courses?: Course[];
 	onSelect?: (course: Course) => void;
+	isLoading?: boolean;
 }
 
-export const CourseList = ({ courses = [], onSelect }: CourseListProps) => {
+const LoadingSkeleton = () => (
+	<div className="space-y-4">
+		<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+			<Skeleton className="h-10 w-full" />
+			<Skeleton className="h-10 w-full" />
+			<Skeleton className="h-10 w-full" />
+		</div>
+		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+			{[1, 2, 3, 4, 5, 6].map((i) => (
+				<div key={i} className="p-4 border rounded-lg">
+					<Skeleton className="h-6 w-3/4 mb-2" />
+					<Skeleton className="h-4 w-1/2 mb-2" />
+					<Skeleton className="h-4 w-1/3" />
+				</div>
+			))}
+		</div>
+	</div>
+);
+
+export const CourseList = ({ courses = [], onSelect, isLoading = false }: CourseListProps) => {
+	if (isLoading) {
+		return <LoadingSkeleton />;
+	}
+
 	const [searchTerm, setSearchTerm] = useState('');
 	const [programFilter, setProgramFilter] = useState('all');
 	const [yearFilter, setYearFilter] = useState('all');

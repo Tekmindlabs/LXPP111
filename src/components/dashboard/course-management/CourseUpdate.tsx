@@ -6,11 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { CourseStructureEditor } from './CourseStructureEditor';
 import type { Course, Subject } from '@/types/course-management';
+import { CourseManagementService } from '@/lib/course-management/course-service';
+import { toast } from 'sonner';
 
 interface CourseUpdateProps {
 	course?: Course;
 	onUpdate?: (updatedCourse: Course) => void;
 }
+
+const courseManagementService = new CourseManagementService();
 
 export const CourseUpdate = ({ course, onUpdate }: CourseUpdateProps) => {
 	const [courseData, setCourseData] = useState<Partial<Course>>(course || {
@@ -22,8 +26,31 @@ export const CourseUpdate = ({ course, onUpdate }: CourseUpdateProps) => {
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (onUpdate && courseData) {
-			onUpdate(courseData as Course);
+		if (!courseData.id) return;
+
+		try {
+			const updatedCourse = await courseManagementService.updateCourse(courseData.id, {
+				name: courseData.name,
+				academicYear: courseData.academicYear,
+				programId: courseData.program?.id
+			});
+
+			// Update subjects
+			if (courseData.subjects) {
+				for (const subject of courseData.subjects) {
+					await courseManagementService.updateSubject(subject.id, {
+						name: subject.name,
+						description: subject.description,
+						courseStructure: subject.courseStructure
+					});
+				}
+			}
+
+			onUpdate?.(updatedCourse);
+			toast.success('Course updated successfully');
+		} catch (error) {
+			toast.error('Failed to update course');
+			console.error('Error updating course:', error);
 		}
 	};
 

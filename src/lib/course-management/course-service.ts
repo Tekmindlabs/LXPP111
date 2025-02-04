@@ -646,6 +646,48 @@ export class CourseManagementService {
 		return null;
 	}
 
+	async getAllCourses(): Promise<Course[]> {
+		const courses = await db.course.findMany({
+			include: {
+				subjects: {
+					include: {
+						teachers: true,
+						activities: true
+					}
+				},
+				program: true
+			}
+		});
+
+		return courses.map(course => ({
+			id: course.id,
+			name: course.name,
+			academicYear: course.academicYear,
+			subjects: course.subjects.map(s => ({
+				id: s.id,
+				name: s.name,
+				description: s.description || undefined,
+				courseStructure: parseCourseStructure(s.courseStructure),
+				teachers: s.teachers.map(t => ({
+					id: t.id,
+					teacherId: t.teacherId,
+					subjectId: t.subjectId,
+					classId: '',
+					isClassTeacher: false,
+					assignedAt: new Date(),
+					createdAt: new Date(),
+					updatedAt: new Date(),
+					status: t.status === Status.ACTIVE ? 'ACTIVE' : 'INACTIVE'
+				})),
+				activities: s.activities.map(mapClassActivity)
+			})),
+			program: {
+				id: course.program.id,
+				name: course.program.name || ''
+			}
+		}));
+	}
+
 	// Validation Methods
 	async validateCourseStructure(structure: CourseStructure): Promise<boolean> {
 		if (!structure.type || !structure.units) {

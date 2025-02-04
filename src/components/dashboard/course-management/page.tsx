@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CourseBuilder } from '@/components/dashboard/course-management/CourseBuilder';
-import { CourseList } from '@/components/dashboard/course-management/CourseList';
-import { CourseUpdate } from '@/components/dashboard/course-management/CourseUpdate';
+import { CourseBuilder } from './CourseBuilder';
+import { CourseList } from './CourseList';
+import { CourseUpdate } from './CourseUpdate';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import type { Course } from '@/types/course-management';
@@ -12,7 +12,7 @@ import { CourseManagementService } from '@/lib/course-management/course-service'
 
 const courseManagementService = new CourseManagementService();
 
-export default function CourseManagementPage() {
+export function CourseManagementPage() {
 	const [activeTab, setActiveTab] = useState('create');
 	const [selectedCourse, setSelectedCourse] = useState<Course | undefined>();
 	const [courses, setCourses] = useState<Course[]>([]);
@@ -21,8 +21,7 @@ export default function CourseManagementPage() {
 	useEffect(() => {
 		const fetchCourses = async () => {
 			try {
-				const fetchedCourses = await courseManagementService.getAllCourses();
-				setCourses(fetchedCourses);
+				// TODO: Add API endpoint to fetch all courses
 				setIsLoading(false);
 			} catch (error) {
 				console.error('Error fetching courses:', error);
@@ -74,6 +73,7 @@ export default function CourseManagementPage() {
 								setSelectedCourse(course);
 								setActiveTab('update');
 							}}
+							isLoading={isLoading}
 						/>
 					</Card>
 				</TabsContent>
