@@ -63,7 +63,7 @@ export const ClassGroupManagement = () => {
 							Create Class Group
 						</Button>
 					</DialogTrigger>
-					<DialogContent>
+					<DialogContent size="wide">
 						<DialogHeader>
 							<DialogTitle>Create New Class Group</DialogTitle>
 						</DialogHeader>
@@ -126,12 +126,18 @@ export const ClassGroupManagement = () => {
 					) : (
 						<>
 							<ClassGroupList 
-								classGroups={classGroups || []} 
+								classGroups={classGroups?.map(group => ({
+									...group,
+									program: {
+										...group.program,
+										name: group.program.name || 'Unnamed Program'
+									}
+								})) || []} 
 								onEdit={(id) => setSelectedGroupId(id)}
 							/>
 							{selectedGroupId && (
 								<Dialog open={!!selectedGroupId} onOpenChange={(open) => !open && setSelectedGroupId(null)}>
-									<DialogContent>
+									<DialogContent size="wide">
 										<DialogHeader>
 											<DialogTitle>Edit Class Group</DialogTitle>
 										</DialogHeader>

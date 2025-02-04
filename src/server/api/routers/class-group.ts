@@ -1,7 +1,26 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { Status } from "@prisma/client";
+import { Status, Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
+
+const courseSettingsSchema = z.object({
+	allowLateSubmissions: z.boolean(),
+	gradingScale: z.string(),
+	attendanceRequired: z.boolean(),
+});
+
+const courseSchema = z.object({
+	name: z.string(),
+	isTemplate: z.boolean(),
+	templateId: z.string().optional(),
+	subjects: z.array(z.string()),
+	settings: courseSettingsSchema,
+});
+
+const calendarSchema = z.object({
+	id: z.string(),
+	inheritSettings: z.boolean(),
+});
 
 export const classGroupRouter = createTRPCRouter({
 	createClassGroup: protectedProcedure
@@ -10,15 +29,65 @@ export const classGroupRouter = createTRPCRouter({
 			description: z.string().optional(),
 			programId: z.string(),
 			status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]).default(Status.ACTIVE),
+			course: courseSchema,
+			calendar: calendarSchema,
 		}))
 		.mutation(async ({ ctx, input }) => {
-			return ctx.prisma.classGroup.create({
-				data: input,
-				include: {
-					program: true,
-					subjects: true,
-					classes: true,
-				},
+			const { course, calendar, ...classGroupData } = input;
+
+			return ctx.prisma.$transaction(async (tx) => {
+				// Create course first
+				const createdCourse = await tx.course.create({
+					data: {
+						name: course.name,
+						academicYear: new Date().getFullYear().toString(),
+						isTemplate: course.isTemplate,
+						programId: classGroupData.programId,
+						settings: course.settings as Prisma.InputJsonValue,
+						subjects: {
+							connect: course.subjects.map(id => ({ id }))
+						},
+						...(course.templateId ? {
+							parentCourseId: course.templateId
+						} : {})
+					}
+				});
+
+
+				// Create class group with course and calendar references
+				const classGroup = await tx.classGroup.create({
+					data: {
+						...classGroupData,
+						courseId: createdCourse.id,
+						calendarId: calendar.id,
+					},
+					include: {
+						program: true,
+						subjects: true,
+						classes: true,
+						course: true,
+						calendar: true,
+
+					},
+				});
+
+				// If inheriting calendar settings, copy them
+				if (calendar.inheritSettings && classGroup.calendar?.metadata) {
+					const calendarMetadata = classGroup.calendar.metadata as Prisma.JsonValue;
+					await tx.course.update({
+						where: { id: createdCourse.id },
+						data: {
+							settings: {
+								...course.settings,
+								...(typeof calendarMetadata === 'object' ? calendarMetadata : {})
+							} as Prisma.InputJsonValue
+						}
+					});
+				}
+
+
+
+				return classGroup;
 			});
 		}),
 
@@ -29,17 +98,81 @@ export const classGroupRouter = createTRPCRouter({
 			description: z.string().optional(),
 			programId: z.string().optional(),
 			status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]).optional(),
+			course: courseSchema.optional(),
+			calendar: calendarSchema.optional(),
 		}))
 		.mutation(async ({ ctx, input }) => {
-			const { id, ...data } = input;
-			return ctx.prisma.classGroup.update({
-				where: { id },
-				data,
-				include: {
-					program: true,
-					subjects: true,
-					classes: true,
-				},
+			const { id, course, calendar, ...data } = input;
+
+			return ctx.prisma.$transaction(async (tx) => {
+				const classGroup = await tx.classGroup.findUnique({
+					where: { id },
+					include: { course: true }
+				});
+
+				if (!classGroup) {
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Class group not found"
+					});
+				}
+
+				// Update course if provided
+				if (course && classGroup.course) {
+					await tx.course.update({
+						where: { id: classGroup.course.id },
+						data: {
+							name: course.name,
+							isTemplate: course.isTemplate,
+							parentCourseId: course.templateId,
+							settings: course.settings,
+							subjects: {
+								set: course.subjects.map(id => ({ id }))
+							}
+						}
+					});
+				}
+
+				// Update calendar if provided
+				if (calendar) {
+					await tx.classGroup.update({
+						where: { id },
+						data: { calendarId: calendar.id }
+					});
+
+					if (calendar.inheritSettings && classGroup.course) {
+						const calendarSettings = await tx.calendar.findUnique({
+							where: { id: calendar.id },
+							select: { metadata: true }
+						});
+
+						if (calendar.inheritSettings && calendarSettings?.metadata) {
+							const metadata = calendarSettings.metadata as Prisma.JsonValue;
+							await tx.course.update({
+								where: { id: classGroup.course.id },
+								data: {
+									settings: {
+										...(typeof classGroup.course.settings === 'object' ? classGroup.course.settings : {}),
+										...(typeof metadata === 'object' ? metadata : {})
+									} as Prisma.InputJsonValue
+								}
+							});
+						}
+					}
+				}
+
+				// Update class group
+				return tx.classGroup.update({
+					where: { id },
+					data,
+					include: {
+						program: true,
+						subjects: true,
+						classes: true,
+						course: true,
+						calendar: true,
+					},
+				});
 			});
 		}),
 
@@ -60,7 +193,7 @@ export const classGroupRouter = createTRPCRouter({
 					program: true,
 					subjects: true,
 					classes: true,
-					timetable: true,
+					timetables: true,
 				},
 			});
 		}),
@@ -179,7 +312,7 @@ export const classGroupRouter = createTRPCRouter({
 						include: {
 							classGroups: {
 								include: {
-									timetable: {
+									timetables: {
 										include: {
 											term: {
 												include: {
@@ -207,7 +340,7 @@ export const classGroupRouter = createTRPCRouter({
 							},
 						},
 					},
-					timetable: {
+					timetables: {
 						include: {
 							term: {
 								include: {
@@ -255,22 +388,24 @@ export const classGroupRouter = createTRPCRouter({
 
 			// Update timetable for each class if needed
 			for (const cls of classes) {
-				if (cls.timetable) {
-					// Update periods with new subjects
-					// This is a simplified version - in reality, you'd need more complex logic
-					// to handle existing periods and scheduling
+				const timetable = await ctx.prisma.timetable.findFirst({
+					where: { classId: cls.id }
+				});
+
+				if (timetable) {
 					await ctx.prisma.period.createMany({
 						data: subjectIds.map(subjectId => ({
-							timetableId: cls.timetable!.id,
+							timetableId: timetable.id,
 							subjectId,
-							// Default values for new periods
+							teacherId: "", // This should be set to a valid teacher ID in production
 							startTime: new Date(),
 							endTime: new Date(),
 							dayOfWeek: 1,
-							classroomId: "", // You'll need to handle this appropriately
-						})),
+							classroomId: "" // This should be set to a valid classroom ID in production
+						}))
 					});
 				}
+
 			}
 
 			return classGroup;
@@ -302,9 +437,10 @@ export const classGroupRouter = createTRPCRouter({
 		.input(z.object({
 			classGroupId: z.string(),
 			calendarId: z.string(),
+			classId: z.string(), // Required for timetable creation
 		}))
 		.mutation(async ({ ctx, input }) => {
-			const { classGroupId, calendarId } = input;
+			const { classGroupId, calendarId, classId } = input;
 
 			// Get the calendar and its terms
 			const calendar = await ctx.prisma.calendar.findUnique({
@@ -328,13 +464,14 @@ export const classGroupRouter = createTRPCRouter({
 				data: {
 					termId: term.id,
 					classGroupId,
+					classId, // Add required classId
 				},
 			});
 
 			return ctx.prisma.classGroup.findUnique({
 				where: { id: classGroupId },
 				include: {
-					timetable: {
+					timetables: {
 						include: {
 							term: {
 								include: {
@@ -354,7 +491,7 @@ export const classGroupRouter = createTRPCRouter({
 					program: true,
 					classes: true,
 					subjects: true,
-					timetable: {
+					timetables: {
 						include: {
 							periods: {
 								include: {
@@ -378,7 +515,7 @@ export const classGroupRouter = createTRPCRouter({
 					program: true,
 					classes: {
 						include: {
-							timetable: {
+							timetables: {
 								include: {
 									periods: {
 										include: {
@@ -395,7 +532,7 @@ export const classGroupRouter = createTRPCRouter({
 							},
 						},
 					},
-					timetable: {
+					timetables: {
 						include: {
 							periods: {
 								include: {
@@ -420,6 +557,7 @@ export const classGroupRouter = createTRPCRouter({
 		.input(z.object({
 			classGroupId: z.string(),
 			termId: z.string(),
+			classId: z.string()
 		}))
 		.mutation(async ({ ctx, input }) => {
 			const existingTimetable = await ctx.prisma.timetable.findFirst({
@@ -435,8 +573,9 @@ export const classGroupRouter = createTRPCRouter({
 
 			return ctx.prisma.timetable.create({
 				data: {
-					classGroup: { connect: { id: input.classGroupId } },
 					term: { connect: { id: input.termId } },
+					classGroup: { connect: { id: input.classGroupId } },
+					class: { connect: { id: input.classId } }
 				},
 				include: {
 					periods: {
@@ -445,12 +584,12 @@ export const classGroupRouter = createTRPCRouter({
 							classroom: true,
 							teacher: {
 								include: {
-									user: true,
-								},
-							},
-						},
-					},
-				},
+									user: true
+								}
+							}
+						}
+					}
+				}
 			});
 		}),
 });

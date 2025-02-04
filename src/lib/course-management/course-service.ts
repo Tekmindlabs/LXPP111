@@ -1,5 +1,23 @@
-import { PrismaClient, Course, ClassGroup } from "@prisma/client";
+import { PrismaClient, Course as PrismaCourse, ClassGroup, Prisma, Status } from "@prisma/client";
 import { db } from "../db";
+import {
+	Course,
+	Subject,
+	TeacherAssignment,
+	ClassActivity,
+	CourseStructure,
+	CourseStructureType,
+	ProgressTracking,
+	ChapterUnit,
+	BlockUnit,
+	WeeklyUnit
+} from "@/types/course-management";
+
+interface CourseSettings {
+	allowLateSubmissions: boolean;
+	gradingScale: string;
+	attendanceRequired: boolean;
+}
 
 export class CourseService {
 	private prisma: PrismaClient;
@@ -8,19 +26,25 @@ export class CourseService {
 		this.prisma = db;
 	}
 
+	private serializeCourseSettings(settings: CourseSettings): Prisma.InputJsonValue {
+		// Convert null values to undefined for Prisma compatibility
+		const serialized = JSON.parse(JSON.stringify(settings));
+		return serialized === null ? undefined : serialized;
+	}
+
 	async createCourseTemplate(data: {
 		name: string;
 		programId: string;
 		subjects: string[];
-		settings?: Record<string, any>;
-	}): Promise<Course> {
+		settings: CourseSettings;
+	}): Promise<PrismaCourse> {
 		return this.prisma.course.create({
 			data: {
 				name: data.name,
-				academicYear: new Date().getFullYear().toString(),
 				programId: data.programId,
+				academicYear: new Date().getFullYear().toString(),
 				isTemplate: true,
-				settings: data.settings,
+				settings: this.serializeCourseSettings(data.settings),
 				subjects: {
 					connect: data.subjects.map(id => ({ id }))
 				}
@@ -34,8 +58,8 @@ export class CourseService {
 	async createCourseFromTemplate(templateId: string, data: {
 		name: string;
 		programId: string;
-		settings?: Record<string, any>;
-	}): Promise<Course> {
+		settings?: CourseSettings;
+	}): Promise<PrismaCourse> {
 		const template = await this.prisma.course.findUnique({
 			where: { id: templateId },
 			include: { subjects: true }
@@ -45,22 +69,26 @@ export class CourseService {
 			throw new Error('Template course not found');
 		}
 
+		const settings = data.settings 
+			? this.serializeCourseSettings(data.settings)
+			: template.settings === null 
+				? undefined 
+				: template.settings;
+
 		return this.prisma.course.create({
 			data: {
 				name: data.name,
-				academicYear: new Date().getFullYear().toString(),
 				programId: data.programId,
+				academicYear: new Date().getFullYear().toString(),
 				parentCourseId: template.id,
-				settings: {
-					...template.settings,
-					...data.settings
-				},
+				settings,
 				subjects: {
 					connect: template.subjects.map(s => ({ id: s.id }))
 				}
 			},
 			include: {
-				subjects: true
+				subjects: true,
+				parentCourse: true
 			}
 		});
 	}
@@ -73,51 +101,97 @@ export class CourseService {
 		course: {
 			name: string;
 			subjects: string[];
-			inheritFromTemplate?: string;
-			settings?: Record<string, any>;
+			isTemplate: boolean;
+			templateId?: string;
+			settings: CourseSettings;
 		};
 	}): Promise<ClassGroup> {
-		let course: Course;
+		return this.prisma.$transaction(async (tx) => {
+			let course: PrismaCourse;
 
-		if (data.course.inheritFromTemplate) {
-			course = await this.createCourseFromTemplate(data.course.inheritFromTemplate, {
-				name: data.course.name,
-				programId: data.programId,
-				settings: data.course.settings
-			});
-		} else {
-			course = await this.prisma.course.create({
-				data: {
-					name: data.course.name,
-					academicYear: new Date().getFullYear().toString(),
-					programId: data.programId,
-					settings: data.course.settings,
-					subjects: {
-						connect: data.course.subjects.map(id => ({ id }))
-					}
-				}
-			});
-		}
+			if (data.course.templateId) {
+				const template = await tx.course.findUnique({
+					where: { 
+						id: data.course.templateId,
+						isTemplate: true
+					},
+					include: { subjects: true }
+				});
 
-		return this.prisma.classGroup.create({
-			data: {
-				name: data.name,
-				description: data.description,
-				programId: data.programId,
-				courseId: course.id,
-				calendarId: data.calendarId
-			},
-			include: {
-				course: {
-					include: {
-						subjects: true
-					}
+				if (!template) {
+					throw new Error('Template course not found');
 				}
+
+				course = await tx.course.create({
+					data: {
+						name: data.course.name,
+						programId: data.programId,
+						academicYear: new Date().getFullYear().toString(),
+						parentCourseId: template.id,
+						settings: this.serializeCourseSettings(data.course.settings),
+						subjects: {
+							connect: template.subjects.map(s => ({ id: s.id }))
+						}
+					}
+				});
+			} else {
+				course = await tx.course.create({
+					data: {
+						name: data.course.name,
+						programId: data.programId,
+						academicYear: new Date().getFullYear().toString(),
+						isTemplate: data.course.isTemplate,
+						settings: this.serializeCourseSettings(data.course.settings),
+						subjects: {
+							connect: data.course.subjects.map(id => ({ id }))
+						}
+					}
+				});
 			}
+
+			const classGroup = await tx.classGroup.create({
+				data: {
+					name: data.name,
+					description: data.description,
+					programId: data.programId,
+					courseId: course.id,
+					calendarId: data.calendarId
+				},
+				include: {
+					course: {
+						include: {
+							subjects: true
+						}
+					},
+					calendar: {
+						select: {
+							metadata: true
+						}
+					}
+				}
+			});
+
+			// If calendar has metadata, merge it with course settings
+			if (classGroup.calendar?.metadata) {
+				const calendarMetadata = classGroup.calendar.metadata as Record<string, unknown>;
+				const mergedSettings = {
+					...data.course.settings,
+					...calendarMetadata
+				};
+
+				await tx.course.update({
+					where: { id: course.id },
+					data: {
+						settings: this.serializeCourseSettings(mergedSettings as CourseSettings)
+					}
+				});
+			}
+
+			return classGroup;
 		});
 	}
 
-	async getTemplates(): Promise<Course[]> {
+	async getTemplates(): Promise<PrismaCourse[]> {
 		return this.prisma.course.findMany({
 			where: {
 				isTemplate: true
@@ -127,24 +201,68 @@ export class CourseService {
 			}
 		});
 	}
+
+	async updateCourseSettings(courseId: string, settings: CourseSettings): Promise<PrismaCourse> {
+		return this.prisma.course.update({
+			where: { id: courseId },
+			data: {
+				settings: this.serializeCourseSettings(settings)
+			}
+		});
+	}
 }
 
 export const courseService = new CourseService();
 
 // Helper mapping functions
-const mapTeacherAssignment = (t: any): TeacherAssignment => ({
-	id: t.id,
-	teacherId: t.teacherId,
-	subjectId: t.subjectId,
-	classId: t.classId || '',
-	isClassTeacher: t.isClassTeacher || false,
-	assignedAt: t.assignedAt || new Date(),
-	createdAt: t.createdAt || new Date(),
-	updatedAt: t.updatedAt || new Date(),
-	status: t.status || 'ACTIVE'
-});
+interface ClassActivityInput {
 
-const mapClassActivity = (a: any): ClassActivity => ({
+	id: string;
+	type?: string;
+	title: string;
+	description: string;
+	dueDate?: Date | string | null;
+	points?: number | null;
+	status?: string;
+}
+
+interface CourseStructureInput {
+	type: CourseStructureType;
+	units: Array<ChapterUnit | BlockUnit | WeeklyUnit>;
+}
+
+
+interface SubjectInput {
+	id: string;
+	name: string;
+	description?: string | null;
+	courseStructure?: CourseStructureInput | null;
+	teachers?: Array<{
+		id: string;
+		teacherId: string;
+		subjectId: string;
+		status: Status;
+	}>;
+	activities?: Array<{
+		id: string;
+		type: string;
+		title: string;
+		description: string;
+		dueDate: Date | null;
+		points: number | null;
+		status: string;
+	}>;
+}
+
+const serializeJson = (data: unknown): Prisma.InputJsonValue => {
+	const serialized = JSON.parse(JSON.stringify(data));
+	return serialized === null ? undefined : serialized;
+};
+
+
+
+
+const mapClassActivity = (a: ClassActivityInput): ClassActivity => ({
 	id: a.id,
 	type: (a.type || 'ASSIGNMENT') as ClassActivity['type'],
 	title: a.title,
@@ -154,39 +272,57 @@ const mapClassActivity = (a: any): ClassActivity => ({
 	status: (a.status || 'DRAFT') as ClassActivity['status']
 });
 
-const mapCourseStructure = (structure: any): CourseStructure => {
-	if (!structure) {
-		return {
-			type: 'CHAPTER',
-			units: []
-		};
+const parseCourseStructure = (data: unknown): CourseStructure => {
+	if (!data) {
+		return { type: 'CHAPTER', units: [] };
 	}
-	return {
-		type: (structure.type || 'CHAPTER') as CourseStructureType,
-		units: Array.isArray(structure.units) ? structure.units : []
-	};
+	try {
+		const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+		return {
+			type: (parsed.type as CourseStructureType) || 'CHAPTER',
+			units: Array.isArray(parsed.units) ? parsed.units as (ChapterUnit[] | BlockUnit[] | WeeklyUnit[]) : []
+		};
+	} catch {
+		return { type: 'CHAPTER', units: [] };
+	}
 };
 
-const mapSubject = (s: any): Subject => ({
+
+const mapSubject = (s: SubjectInput): Subject => ({
 	id: s.id,
 	name: s.name,
 	description: s.description || undefined,
-	courseStructure: mapCourseStructure(s.courseStructure),
-	teachers: s.teachers.map(mapTeacherAssignment),
-	activities: s.activities.map(mapClassActivity)
+	courseStructure: parseCourseStructure(s.courseStructure),
+	teachers: (s.teachers || []).map(t => ({
+		id: t.id,
+		teacherId: t.teacherId,
+		subjectId: t.subjectId,
+		classId: '',
+		isClassTeacher: false,
+		assignedAt: new Date(),
+		createdAt: new Date(),
+		updatedAt: new Date(),
+		status: t.status === Status.ACTIVE ? 'ACTIVE' : 'INACTIVE'
+	})),
+	activities: (s.activities || []).map(mapClassActivity)
 });
 
+
+
 export class CourseManagementService {
-	async createCourse(courseData: Omit<Course, 'id' | 'subjects'>): Promise<Course> {
+
+
+
+	async createCourse(courseData: {
+		name: string;
+		academicYear: string;
+		programId: string;
+	}): Promise<Course> {
 		const course = await db.course.create({
 			data: {
 				name: courseData.name,
 				academicYear: courseData.academicYear,
-				program: {
-					connect: {
-						id: courseData.program.id
-					}
-				}
+				programId: courseData.programId,
 			},
 			include: {
 				subjects: {
@@ -203,8 +339,24 @@ export class CourseManagementService {
 			id: course.id,
 			name: course.name,
 			academicYear: course.academicYear,
-			subjects: course.subjects.map(mapSubject),
-
+			subjects: course.subjects.map(s => ({
+				id: s.id,
+				name: s.name,
+				description: s.description || undefined,
+				courseStructure: parseCourseStructure(s.courseStructure),
+				teachers: s.teachers.map(t => ({
+					id: t.id,
+					teacherId: t.teacherId,
+					subjectId: t.subjectId,
+					classId: '',
+					isClassTeacher: false,
+					assignedAt: new Date(),
+					createdAt: new Date(),
+					updatedAt: new Date(),
+					status: t.status === Status.ACTIVE ? 'ACTIVE' : 'INACTIVE'
+				})),
+				activities: s.activities.map(mapClassActivity)
+			})),
 			program: {
 				id: course.program.id,
 				name: course.program.name || ''
@@ -212,19 +364,17 @@ export class CourseManagementService {
 		};
 	}
 
-	async updateCourse(courseId: string, courseData: Partial<Course>): Promise<Course> {
+	async updateCourse(courseId: string, courseData: {
+		name?: string;
+		academicYear?: string;
+		programId?: string;
+	}): Promise<Course> {
 		const course = await db.course.update({
 			where: { id: courseId },
 			data: {
 				name: courseData.name,
 				academicYear: courseData.academicYear,
-				...(courseData.program && {
-					program: {
-						connect: {
-							id: courseData.program.id
-						}
-					}
-				})
+				programId: courseData.programId,
 			},
 			include: {
 				subjects: {
@@ -241,8 +391,24 @@ export class CourseManagementService {
 			id: course.id,
 			name: course.name,
 			academicYear: course.academicYear,
-			subjects: course.subjects.map(mapSubject),
-
+			subjects: course.subjects.map(s => ({
+				id: s.id,
+				name: s.name,
+				description: s.description || undefined,
+				courseStructure: parseCourseStructure(s.courseStructure),
+				teachers: s.teachers.map(t => ({
+					id: t.id,
+					teacherId: t.teacherId,
+					subjectId: t.subjectId,
+					classId: '',
+					isClassTeacher: false,
+					assignedAt: new Date(),
+					createdAt: new Date(),
+					updatedAt: new Date(),
+					status: t.status === Status.ACTIVE ? 'ACTIVE' : 'INACTIVE'
+				})),
+				activities: s.activities.map(mapClassActivity)
+			})),
 			program: {
 				id: course.program.id,
 				name: course.program.name || ''
@@ -250,13 +416,17 @@ export class CourseManagementService {
 		};
 	}
 
-	async addSubjectToCourse(courseId: string, subjectData: Omit<Subject, 'id' | 'teachers' | 'activities'>): Promise<Subject> {
+	async addSubjectToCourse(courseId: string, subjectData: {
+		name: string;
+		description?: string;
+		courseStructure: CourseStructure;
+	}): Promise<Subject> {
 		const subject = await db.subject.create({
 			data: {
 				name: subjectData.name,
 				description: subjectData.description,
 				code: `SUB-${Date.now()}`,
-				courseStructure: subjectData.courseStructure as any,
+				courseStructure: serializeJson(subjectData.courseStructure),
 				course: {
 					connect: { id: courseId }
 				}
@@ -267,18 +437,38 @@ export class CourseManagementService {
 			}
 		});
 
-		return mapSubject(subject);
-
+		return {
+			id: subject.id,
+			name: subject.name,
+			description: subject.description || undefined,
+			courseStructure: parseCourseStructure(subject.courseStructure),
+			teachers: subject.teachers.map(t => ({
+				id: t.id,
+				teacherId: t.teacherId,
+				subjectId: t.subjectId,
+				classId: '',
+				isClassTeacher: false,
+				assignedAt: new Date(),
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				status: t.status === Status.ACTIVE ? 'ACTIVE' : 'INACTIVE'
+			})),
+			activities: subject.activities.map(mapClassActivity)
+		};
 	}
 
-	async updateSubject(subjectId: string, subjectData: Partial<Subject>): Promise<Subject> {
+	async updateSubject(subjectId: string, subjectData: {
+		name?: string;
+		description?: string;
+		courseStructure?: CourseStructure;
+	}): Promise<Subject> {
 		const subject = await db.subject.update({
 			where: { id: subjectId },
 			data: {
 				name: subjectData.name,
 				description: subjectData.description,
 				...(subjectData.courseStructure && {
-					courseStructure: subjectData.courseStructure as any
+					courseStructure: serializeJson(subjectData.courseStructure)
 				})
 			},
 			include: {
@@ -287,9 +477,26 @@ export class CourseManagementService {
 			}
 		});
 
-		return mapSubject(subject);
-
+		return {
+			id: subject.id,
+			name: subject.name,
+			description: subject.description || undefined,
+			courseStructure: parseCourseStructure(subject.courseStructure),
+			teachers: subject.teachers.map(t => ({
+				id: t.id,
+				teacherId: t.teacherId,
+				subjectId: t.subjectId,
+				classId: '',
+				isClassTeacher: false,
+				assignedAt: new Date(),
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				status: t.status === Status.ACTIVE ? 'ACTIVE' : 'INACTIVE'
+			})),
+			activities: subject.activities.map(mapClassActivity)
+		};
 	}
+
 
 	async assignTeacher(assignment: Omit<TeacherAssignment, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Promise<TeacherAssignment> {
 		const teacherAssignment = await db.teacherAssignment.create({
@@ -316,7 +523,17 @@ export class CourseManagementService {
 			data: updates
 		});
 
-		return mapTeacherAssignment(assignment);
+		return {
+			id: assignment.id,
+			teacherId: assignment.teacherId,
+			subjectId: assignment.subjectId,
+			classId: assignment.classId || '',
+			isClassTeacher: assignment.isClassTeacher || false,
+			assignedAt: assignment.assignedAt || new Date(),
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			status: 'ACTIVE'
+		};
 	}
 
 	async updateCourseStructure(subjectId: string, structure: CourseStructure): Promise<Subject> {
@@ -328,7 +545,7 @@ export class CourseManagementService {
 		const subject = await db.subject.update({
 			where: { id: subjectId },
 			data: {
-				courseStructure: structure as any
+				courseStructure: serializeJson(structure)
 			},
 			include: {
 				teachers: true,
@@ -336,8 +553,24 @@ export class CourseManagementService {
 			}
 		});
 
-		return mapSubject(subject);
-
+		return {
+			id: subject.id,
+			name: subject.name,
+			description: subject.description || undefined,
+			courseStructure: parseCourseStructure(subject.courseStructure),
+			teachers: subject.teachers.map(t => ({
+				id: t.id,
+				teacherId: t.teacherId,
+				subjectId: t.subjectId,
+				classId: '',
+				isClassTeacher: false,
+				assignedAt: new Date(),
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				status: t.status === Status.ACTIVE ? 'ACTIVE' : 'INACTIVE'
+			})),
+			activities: subject.activities.map(mapClassActivity)
+		};
 	}
 
 	async updateActivityStatus(activityId: string, status: ClassActivity['status']): Promise<ClassActivity> {
@@ -415,7 +648,6 @@ export class CourseManagementService {
 
 	// Validation Methods
 	async validateCourseStructure(structure: CourseStructure): Promise<boolean> {
-		// Basic validation logic
 		if (!structure.type || !structure.units) {
 			return false;
 		}
@@ -433,12 +665,20 @@ export class CourseManagementService {
 	}
 
 	private validateChapterStructure(structure: CourseStructure): boolean {
-		const units = structure.units as any[];
+		const units = structure.units as Array<{
+			chapterNumber: number;
+			title: string;
+			sections: Array<{
+				title: string;
+				content: unknown[];
+			}>;
+		}>;
+
 		return units.every(unit => 
 			unit.chapterNumber && 
 			unit.title && 
 			Array.isArray(unit.sections) &&
-			unit.sections.every((section: any) => 
+			unit.sections.every(section => 
 				section.title && 
 				Array.isArray(section.content)
 			)
@@ -446,7 +686,12 @@ export class CourseManagementService {
 	}
 
 	private validateBlockStructure(structure: CourseStructure): boolean {
-		const units = structure.units as any[];
+		const units = structure.units as Array<{
+			position: number;
+			title: string;
+			content: unknown[];
+		}>;
+
 		return units.every(unit => 
 			typeof unit.position === 'number' && 
 			unit.title && 
@@ -455,16 +700,26 @@ export class CourseManagementService {
 	}
 
 	private validateWeeklyStructure(structure: CourseStructure): boolean {
-		const units = structure.units as any[];
+		const units = structure.units as Array<{
+			weekNumber: number;
+			startDate: Date;
+			endDate: Date;
+			dailyActivities: Array<{
+				day: number;
+				content: unknown[];
+			}>;
+		}>;
+
 		return units.every(unit => 
 			unit.weekNumber && 
 			unit.startDate && 
 			unit.endDate && 
 			Array.isArray(unit.dailyActivities) &&
-			unit.dailyActivities.every((daily: any) => 
+			unit.dailyActivities.every(daily => 
 				typeof daily.day === 'number' && 
 				Array.isArray(daily.content)
 			)
 		);
 	}
+
 }

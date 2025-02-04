@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 interface ClassGroupListProps {
 	classGroups: (ClassGroup & {
 		program: {
-			name: string;
+			name: string | null;
 		};
 		classes: any[];
 		subjects: any[];
@@ -55,7 +55,9 @@ export const ClassGroupList = ({ classGroups, onEdit }: ClassGroupListProps) => 
 										{group.status}
 									</span>
 								</div>
-								<p className="mt-1 text-sm text-muted-foreground">{group.program.name}</p>
+								<p className="mt-1 text-sm text-muted-foreground">
+									{group.program.name || 'Unnamed Program'}
+								</p>
 								{group.description && (
 									<p className="mt-2 text-sm text-muted-foreground line-clamp-2">
 										{group.description}

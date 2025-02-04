@@ -15,9 +15,19 @@ const calendarSchema = z.object({
 });
 
 export const calendarRouter = createTRPCRouter({
-	getAllCalendars: protectedProcedure.query(async ({ ctx }) => {
+	getAll: protectedProcedure.query(async ({ ctx }) => {
 		return ctx.prisma.calendar.findMany({
-			include: {
+			select: {
+				id: true,
+				name: true,
+				description: true,
+				startDate: true,
+				endDate: true,
+				type: true,
+				status: true,
+				isDefault: true,
+				visibility: true,
+				metadata: true,
 				events: true,
 			},
 			orderBy: {

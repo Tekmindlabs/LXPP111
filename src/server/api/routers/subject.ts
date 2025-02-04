@@ -3,6 +3,27 @@ import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { Status } from "@prisma/client";
 
 export const subjectRouter = createTRPCRouter({
+	getAll: protectedProcedure
+		.query(async ({ ctx }) => {
+			return ctx.prisma.subject.findMany({
+				include: {
+					classGroups: true,
+					teachers: {
+						include: {
+							teacher: {
+								include: {
+									user: true,
+								},
+							},
+						},
+					},
+				},
+				orderBy: {
+					name: 'asc',
+				},
+			});
+		}),
+
 	create: protectedProcedure
 		.input(z.object({
 			name: z.string(),
