@@ -1,14 +1,29 @@
+export interface Calendar {
+	id: string;
+	name: string;
+	description?: string;
+	startDate: Date;
+	endDate: Date;
+}
+
+export interface ClassGroup {
+	id: string;
+	name: string;
+	description?: string;
+	calendar?: Calendar;
+	calendarId: string;
+}
+
 // Core Course Types
 export interface Course {
 	id: string;
 	name: string;
 	subjects: Subject[];
 	academicYear: string;
-	program: {
-		id: string;
-		name: string;
-	};
+	classGroupId: string;
+	calendarId?: string;
 }
+
 
 export interface Subject {
 	id: string;

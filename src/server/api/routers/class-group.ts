@@ -209,6 +209,7 @@ export const classGroupRouter = createTRPCRouter({
 					program: true,
 					subjects: true,
 					classes: true,
+					calendar: true,
 				},
 				orderBy: {
 					name: 'asc',

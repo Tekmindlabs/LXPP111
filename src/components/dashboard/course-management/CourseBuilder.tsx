@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { api } from '@/utils/api';
 
 interface CourseBuilderProps {
 	onCourseCreated?: (course: Course) => void;
@@ -19,9 +20,12 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 	const [courseData, setCourseData] = useState<Partial<Course>>({
 		name: '',
 		academicYear: '',
-		program: { id: '', name: '' },
+		classGroupId: '',
+		calendarId: '',
 		subjects: []
 	});
+
+	const { data: classGroups } = api.classGroup.getAllClassGroups.useQuery();
 
 	const [currentSubject, setCurrentSubject] = useState<Partial<Subject>>({
 		name: '',
@@ -35,7 +39,7 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 	const handleCourseSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		
-		if (!courseData.name || !courseData.academicYear || !courseData.program?.name) {
+		if (!courseData.name || !courseData.academicYear || !courseData.classGroupId) {
 			toast.error('Please fill in all required fields');
 			return;
 		}
@@ -44,10 +48,9 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 			const newCourse = await courseManagementService.createCourse({
 				name: courseData.name,
 				academicYear: courseData.academicYear,
-				programId: courseData.program.id || crypto.randomUUID()
+				classGroupId: courseData.classGroupId
 			});
 
-			// Add subjects if any
 			if (courseData.subjects?.length) {
 				for (const subject of courseData.subjects) {
 					await courseManagementService.addSubjectToCourse(newCourse.id, {
@@ -61,11 +64,11 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 			onCourseCreated?.(newCourse);
 			toast.success('Course created successfully');
 			
-			// Reset form
 			setCourseData({
 				name: '',
 				academicYear: '',
-				program: { id: '', name: '' },
+				classGroupId: '',
+				calendarId: '',
 				subjects: []
 			});
 		} catch (error) {
@@ -89,6 +92,8 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 			});
 		}
 	};
+
+	const selectedClassGroup = classGroups?.find(group => group.id === courseData.classGroupId);
 
 	return (
 		<div className="space-y-6 p-6">
@@ -116,17 +121,41 @@ export const CourseBuilder = ({ onCourseCreated }: CourseBuilderProps) => {
 					</div>
 
 					<div>
-						<label className="block text-sm font-medium mb-1">Program Name</label>
-						<Input
-							value={courseData.program?.name}
-							onChange={(e) => setCourseData(prev => ({ 
-								...prev, 
-								program: { ...prev.program!, name: e.target.value }
-							}))}
-							placeholder="Enter program name"
-							required
-						/>
+						<label className="block text-sm font-medium mb-1">Class Group</label>
+						<Select
+							value={courseData.classGroupId}
+							onValueChange={(value) => {
+								const selectedGroup = classGroups?.find(group => group.id === value);
+								setCourseData(prev => ({
+									...prev,
+									classGroupId: value,
+									calendarId: selectedGroup?.calendar?.id || ''
+								}));
+							}}
+						>
+							<SelectTrigger>
+								<SelectValue placeholder="Select Class Group" />
+							</SelectTrigger>
+							<SelectContent>
+								{classGroups?.map((group) => (
+									<SelectItem key={group.id} value={group.id}>
+										{group.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
+
+					{selectedClassGroup?.calendar && (
+						<div>
+							<label className="block text-sm font-medium mb-1">Associated Calendar</label>
+							<Input
+								value={selectedClassGroup.calendar.name}
+								disabled
+								placeholder="Calendar"
+							/>
+						</div>
+					)}
 
 					<div className="border-t pt-4 mt-4">
 						<h3 className="text-lg font-semibold mb-3">Add Subject</h3>

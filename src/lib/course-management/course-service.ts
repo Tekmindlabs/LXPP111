@@ -316,13 +316,26 @@ export class CourseManagementService {
 	async createCourse(courseData: {
 		name: string;
 		academicYear: string;
-		programId: string;
+		classGroupId: string;
 	}): Promise<Course> {
+		// First get the class group to get its program ID
+		const classGroup = await db.classGroup.findUnique({
+			where: { id: courseData.classGroupId },
+			include: { program: true }
+		});
+
+		if (!classGroup) {
+			throw new Error('Class group not found');
+		}
+
 		const course = await db.course.create({
 			data: {
 				name: courseData.name,
 				academicYear: courseData.academicYear,
-				programId: courseData.programId,
+				programId: classGroup.programId,
+				classGroups: {
+					connect: { id: courseData.classGroupId }
+				}
 			},
 			include: {
 				subjects: {
@@ -331,9 +344,15 @@ export class CourseManagementService {
 						activities: true
 					}
 				},
-				program: true
+				classGroups: {
+					include: {
+						calendar: true
+					}
+				}
 			}
 		});
+
+		const connectedClassGroup = course.classGroups[0];
 
 		return {
 			id: course.id,
@@ -357,24 +376,26 @@ export class CourseManagementService {
 				})),
 				activities: s.activities.map(mapClassActivity)
 			})),
-			program: {
-				id: course.program.id,
-				name: course.program.name || ''
-			}
+			classGroupId: connectedClassGroup.id,
+			calendarId: connectedClassGroup.calendar?.id
 		};
 	}
 
 	async updateCourse(courseId: string, courseData: {
 		name?: string;
 		academicYear?: string;
-		programId?: string;
+		classGroupId?: string;
 	}): Promise<Course> {
 		const course = await db.course.update({
 			where: { id: courseId },
 			data: {
 				name: courseData.name,
 				academicYear: courseData.academicYear,
-				programId: courseData.programId,
+				...(courseData.classGroupId && {
+					classGroups: {
+						set: [{ id: courseData.classGroupId }]
+					}
+				})
 			},
 			include: {
 				subjects: {
@@ -383,9 +404,15 @@ export class CourseManagementService {
 						activities: true
 					}
 				},
-				program: true
+				classGroups: {
+					include: {
+						calendar: true
+					}
+				}
 			}
 		});
+
+		const classGroup = course.classGroups[0];
 
 		return {
 			id: course.id,
@@ -409,10 +436,8 @@ export class CourseManagementService {
 				})),
 				activities: s.activities.map(mapClassActivity)
 			})),
-			program: {
-				id: course.program.id,
-				name: course.program.name || ''
-			}
+			classGroupId: classGroup.id,
+			calendarId: classGroup.calendar?.id
 		};
 	}
 
@@ -655,37 +680,42 @@ export class CourseManagementService {
 						activities: true
 					}
 				},
-				program: true
+				classGroups: {
+					include: {
+						calendar: true
+					}
+				}
 			}
 		});
 
-		return courses.map(course => ({
-			id: course.id,
-			name: course.name,
-			academicYear: course.academicYear,
-			subjects: course.subjects.map(s => ({
-				id: s.id,
-				name: s.name,
-				description: s.description || undefined,
-				courseStructure: parseCourseStructure(s.courseStructure),
-				teachers: s.teachers.map(t => ({
-					id: t.id,
-					teacherId: t.teacherId,
-					subjectId: t.subjectId,
-					classId: '',
-					isClassTeacher: false,
-					assignedAt: new Date(),
-					createdAt: new Date(),
-					updatedAt: new Date(),
-					status: t.status === Status.ACTIVE ? 'ACTIVE' : 'INACTIVE'
+		return courses.map(course => {
+			const classGroup = course.classGroups[0];
+			return {
+				id: course.id,
+				name: course.name,
+				academicYear: course.academicYear,
+				subjects: course.subjects.map(s => ({
+					id: s.id,
+					name: s.name,
+					description: s.description || undefined,
+					courseStructure: parseCourseStructure(s.courseStructure),
+					teachers: s.teachers.map(t => ({
+						id: t.id,
+						teacherId: t.teacherId,
+						subjectId: t.subjectId,
+						classId: '',
+						isClassTeacher: false,
+						assignedAt: new Date(),
+						createdAt: new Date(),
+						updatedAt: new Date(),
+						status: t.status === Status.ACTIVE ? 'ACTIVE' : 'INACTIVE'
+					})),
+					activities: s.activities.map(mapClassActivity)
 				})),
-				activities: s.activities.map(mapClassActivity)
-			})),
-			program: {
-				id: course.program.id,
-				name: course.program.name || ''
-			}
-		}));
+				classGroupId: classGroup?.id || '',
+				calendarId: classGroup?.calendar?.id
+			};
+		});
 	}
 
 	// Validation Methods

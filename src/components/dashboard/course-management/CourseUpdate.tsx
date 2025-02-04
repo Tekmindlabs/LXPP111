@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CourseStructureEditor } from './CourseStructureEditor';
 import type { Course, Subject } from '@/types/course-management';
 import { CourseManagementService } from '@/lib/course-management/course-service';
 import { toast } from 'sonner';
+import { api } from '@/utils/api';
 
 interface CourseUpdateProps {
 	course?: Course;
@@ -20,9 +22,12 @@ export const CourseUpdate = ({ course, onUpdate }: CourseUpdateProps) => {
 	const [courseData, setCourseData] = useState<Partial<Course>>(course || {
 		name: '',
 		academicYear: '',
-		program: { id: '', name: '' },
+		classGroupId: '',
+		calendarId: '',
 		subjects: []
 	});
+
+	const { data: classGroups } = api.classGroup.getAllClassGroups.useQuery();
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -32,10 +37,9 @@ export const CourseUpdate = ({ course, onUpdate }: CourseUpdateProps) => {
 			const updatedCourse = await courseManagementService.updateCourse(courseData.id, {
 				name: courseData.name,
 				academicYear: courseData.academicYear,
-				programId: courseData.program?.id
+				classGroupId: courseData.classGroupId
 			});
 
-			// Update subjects
 			if (courseData.subjects) {
 				for (const subject of courseData.subjects) {
 					await courseManagementService.updateSubject(subject.id, {
@@ -71,6 +75,8 @@ export const CourseUpdate = ({ course, onUpdate }: CourseUpdateProps) => {
 		);
 	}
 
+	const selectedClassGroup = classGroups?.find(group => group.id === courseData.classGroupId);
+
 	return (
 		<div className="space-y-6">
 			<form onSubmit={handleSubmit} className="space-y-4">
@@ -95,17 +101,41 @@ export const CourseUpdate = ({ course, onUpdate }: CourseUpdateProps) => {
 				</div>
 
 				<div>
-					<label className="block text-sm font-medium mb-1">Program Name</label>
-					<Input
-						value={courseData.program?.name}
-						onChange={(e) => setCourseData(prev => ({
-							...prev,
-							program: { ...prev.program!, name: e.target.value }
-						}))}
-						placeholder="Enter program name"
-						required
-					/>
+					<label className="block text-sm font-medium mb-1">Class Group</label>
+					<Select
+						value={courseData.classGroupId}
+						onValueChange={(value) => {
+							const selectedGroup = classGroups?.find(group => group.id === value);
+							setCourseData(prev => ({
+								...prev,
+								classGroupId: value,
+								calendarId: selectedGroup?.calendar?.id || ''
+							}));
+						}}
+					>
+						<SelectTrigger>
+							<SelectValue placeholder="Select Class Group" />
+						</SelectTrigger>
+						<SelectContent>
+							{classGroups?.map((group) => (
+								<SelectItem key={group.id} value={group.id}>
+									{group.name}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</div>
+
+				{selectedClassGroup?.calendar && (
+					<div>
+						<label className="block text-sm font-medium mb-1">Associated Calendar</label>
+						<Input
+							value={selectedClassGroup.calendar.name}
+							disabled
+							placeholder="Calendar"
+						/>
+					</div>
+				)}
 
 				<Button type="submit">Update Course</Button>
 			</form>

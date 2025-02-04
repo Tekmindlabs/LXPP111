@@ -39,18 +39,18 @@ export const CourseList = ({ courses = [], onSelect, isLoading = false }: Course
 	}
 
 	const [searchTerm, setSearchTerm] = useState('');
-	const [programFilter, setProgramFilter] = useState('all');
+	const [classGroupFilter, setClassGroupFilter] = useState('all');
 	const [yearFilter, setYearFilter] = useState('all');
 
-	// Get unique programs and years for filters
-	const uniquePrograms = Array.from(new Set(courses.map(course => course.program.name)));
+	// Get unique class groups and years for filters
+	const uniqueClassGroups = Array.from(new Set(courses.map(course => course.classGroupId)));
 	const uniqueYears = Array.from(new Set(courses.map(course => course.academicYear)));
 
 	const filteredCourses = courses.filter(course => {
 		const matchesSearch = course.name.toLowerCase().includes(searchTerm.toLowerCase());
-		const matchesProgram = programFilter === 'all' || course.program.name === programFilter;
+		const matchesClassGroup = classGroupFilter === 'all' || course.classGroupId === classGroupFilter;
 		const matchesYear = yearFilter === 'all' || course.academicYear === yearFilter;
-		return matchesSearch && matchesProgram && matchesYear;
+		return matchesSearch && matchesClassGroup && matchesYear;
 	});
 
 	return (
@@ -61,15 +61,15 @@ export const CourseList = ({ courses = [], onSelect, isLoading = false }: Course
 					value={searchTerm}
 					onChange={(e) => setSearchTerm(e.target.value)}
 				/>
-				<Select value={programFilter} onValueChange={setProgramFilter}>
+				<Select value={classGroupFilter} onValueChange={setClassGroupFilter}>
 					<SelectTrigger>
-						<SelectValue placeholder="Select Program" />
+						<SelectValue placeholder="Select Class Group" />
 					</SelectTrigger>
 					<SelectContent>
-						<SelectItem value="all">All Programs</SelectItem>
-						{uniquePrograms.map((program) => (
-							<SelectItem key={program} value={program}>
-								{program}
+						<SelectItem value="all">All Class Groups</SelectItem>
+						{uniqueClassGroups.map((groupId) => (
+							<SelectItem key={groupId} value={groupId}>
+								{groupId}
 							</SelectItem>
 						))}
 					</SelectContent>
@@ -93,7 +93,10 @@ export const CourseList = ({ courses = [], onSelect, isLoading = false }: Course
 				{filteredCourses.map((course) => (
 					<Card key={course.id} className="p-4">
 						<h3 className="text-lg font-semibold">{course.name}</h3>
-						<p className="text-sm text-gray-600">{course.program.name}</p>
+						<p className="text-sm text-gray-600">Class Group ID: {course.classGroupId}</p>
+						{course.calendarId && (
+							<p className="text-sm text-gray-600">Calendar ID: {course.calendarId}</p>
+						)}
 						<p className="text-sm text-gray-600">{course.academicYear}</p>
 						<div className="mt-4 space-x-2">
 							<Button 
