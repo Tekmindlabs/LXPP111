@@ -121,23 +121,24 @@ async function main() {
       where: { email: demoUser.email },
       update: {},
       create: {
-        email: demoUser.email,
-        name: demoUser.name,
-        password: hashedPassword,
-        status: demoUser.status,
-        userType: demoUser.userType,
-        userRoles: {
-          create: {
-            roleId: role.id,
-          },
+      email: demoUser.email,
+      name: demoUser.name,
+      password: hashedPassword,
+      status: demoUser.status,
+      userType: demoUser.userType,
+      phoneNumber: null, // Add phoneNumber field
+      userRoles: {
+        create: {
+        roleId: role.id,
         },
       },
+      },
       include: {
-        userRoles: {
-          include: {
-            role: true,
-          },
+      userRoles: {
+        include: {
+        role: true,
         },
+      },
       },
     });
 

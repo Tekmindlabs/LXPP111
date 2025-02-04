@@ -46,6 +46,8 @@ model User {
 
   // Activity Tracking
   activityLogs ActivityLog[]
+
+  @@map("users")
 }
 
 // Activity Tracking
@@ -93,12 +95,14 @@ model Calendar {
   events      Event[]
   programs    Program[]
   terms       Term[]
+  classGroups ClassGroup[]
   visibility  Visibility   @default(ALL)
-  metadata    Json? // For additional calendar-specific data
+  metadata    Json?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   @@unique([name, type])
+  @@map("calendars")
 }
 
 model Event {
@@ -199,25 +203,39 @@ model Program {
   courses       Course[]
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
+
+  @@map("programs")
 }
 
 model Course {
-  id           String    @id @default(cuid())
-  name         String
-  academicYear String
-  program      Program   @relation(fields: [programId], references: [id])
-  programId    String
-  subjects     Subject[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String       @id @default(cuid())
+  name           String
+  academicYear   String
+  program        Program      @relation(fields: [programId], references: [id], onDelete: Cascade)
+  programId      String
+  subjects       Subject[]
+  classGroups    ClassGroup[] // New relation
+  isTemplate     Boolean      @default(false)
+  parentCourseId String?      // For tracking inheritance
+  parentCourse   Course?      @relation("CourseInheritance", fields: [parentCourseId], references: [id], onDelete: SetNull)
+  childCourses   Course[]     @relation("CourseInheritance")
+  settings       Json?        // Course settings
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("courses")
 }
 
 model ClassGroup {
   id          String          @id @default(cuid())
   name        String
   description String?
-  program     Program         @relation(fields: [programId], references: [id])
+  program     Program         @relation(fields: [programId], references: [id], onDelete: Cascade)
   programId   String
+  course      Course?         @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  courseId    String?
+  calendar    Calendar        @relation(fields: [calendarId], references: [id], onDelete: Restrict)
+  calendarId  String
   classes     Class[]
   subjects    Subject[]
   timetables  Timetable[]
@@ -227,6 +245,7 @@ model ClassGroup {
   updatedAt   DateTime        @updatedAt
 
   @@unique([name, programId])
+  @@map("class_groups")
 }
 
 model Subject {
@@ -246,6 +265,8 @@ model Subject {
   progress        ProgressTracking[]
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
+
+  @@map("subjects")
 }
 
 model TeacherAssignment {
@@ -288,6 +309,7 @@ model Class {
   updatedAt    DateTime         @updatedAt
 
   @@unique([name, classGroupId])
+  @@map("classes")
 }
 
 // Profile Models
@@ -304,6 +326,8 @@ model StudentProfile {
   parentId    String?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+
+  @@map("student_profiles")
 }
 
 model TeacherProfile {
@@ -321,6 +345,7 @@ model TeacherProfile {
   updatedAt      DateTime         @updatedAt
 
   @@index([userId])
+  @@map("teacher_profiles")
 }
 
 model TeacherSubject {
@@ -357,6 +382,8 @@ model CoordinatorProfile {
   programs  Program[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  @@map("coordinator_profiles")
 }
 
 model ParentProfile {
@@ -366,6 +393,8 @@ model ParentProfile {
   children  StudentProfile[]
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
+
+  @@map("parent_profiles")
 }
 
 // Attendance Models

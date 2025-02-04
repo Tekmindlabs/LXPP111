@@ -1,5 +1,135 @@
-import { Course, Subject, TeacherAssignment, CourseStructure, CourseStructureType, ClassActivity, ProgressTracking } from '../../types/course-management';
-import { db } from '../db';
+import { PrismaClient, Course, ClassGroup } from "@prisma/client";
+import { db } from "../db";
+
+export class CourseService {
+	private prisma: PrismaClient;
+
+	constructor() {
+		this.prisma = db;
+	}
+
+	async createCourseTemplate(data: {
+		name: string;
+		programId: string;
+		subjects: string[];
+		settings?: Record<string, any>;
+	}): Promise<Course> {
+		return this.prisma.course.create({
+			data: {
+				name: data.name,
+				academicYear: new Date().getFullYear().toString(),
+				programId: data.programId,
+				isTemplate: true,
+				settings: data.settings,
+				subjects: {
+					connect: data.subjects.map(id => ({ id }))
+				}
+			},
+			include: {
+				subjects: true
+			}
+		});
+	}
+
+	async createCourseFromTemplate(templateId: string, data: {
+		name: string;
+		programId: string;
+		settings?: Record<string, any>;
+	}): Promise<Course> {
+		const template = await this.prisma.course.findUnique({
+			where: { id: templateId },
+			include: { subjects: true }
+		});
+
+		if (!template) {
+			throw new Error('Template course not found');
+		}
+
+		return this.prisma.course.create({
+			data: {
+				name: data.name,
+				academicYear: new Date().getFullYear().toString(),
+				programId: data.programId,
+				parentCourseId: template.id,
+				settings: {
+					...template.settings,
+					...data.settings
+				},
+				subjects: {
+					connect: template.subjects.map(s => ({ id: s.id }))
+				}
+			},
+			include: {
+				subjects: true
+			}
+		});
+	}
+
+	async createClassGroupWithCourse(data: {
+		name: string;
+		description?: string;
+		programId: string;
+		calendarId: string;
+		course: {
+			name: string;
+			subjects: string[];
+			inheritFromTemplate?: string;
+			settings?: Record<string, any>;
+		};
+	}): Promise<ClassGroup> {
+		let course: Course;
+
+		if (data.course.inheritFromTemplate) {
+			course = await this.createCourseFromTemplate(data.course.inheritFromTemplate, {
+				name: data.course.name,
+				programId: data.programId,
+				settings: data.course.settings
+			});
+		} else {
+			course = await this.prisma.course.create({
+				data: {
+					name: data.course.name,
+					academicYear: new Date().getFullYear().toString(),
+					programId: data.programId,
+					settings: data.course.settings,
+					subjects: {
+						connect: data.course.subjects.map(id => ({ id }))
+					}
+				}
+			});
+		}
+
+		return this.prisma.classGroup.create({
+			data: {
+				name: data.name,
+				description: data.description,
+				programId: data.programId,
+				courseId: course.id,
+				calendarId: data.calendarId
+			},
+			include: {
+				course: {
+					include: {
+						subjects: true
+					}
+				}
+			}
+		});
+	}
+
+	async getTemplates(): Promise<Course[]> {
+		return this.prisma.course.findMany({
+			where: {
+				isTemplate: true
+			},
+			include: {
+				subjects: true
+			}
+		});
+	}
+}
+
+export const courseService = new CourseService();
 
 // Helper mapping functions
 const mapTeacherAssignment = (t: any): TeacherAssignment => ({
