@@ -9,15 +9,15 @@ async function createUsers() {
   const roleNames = ['ADMIN', 'TEACHER', 'STUDENT'];
   const roles = await Promise.all(
     roleNames.map(async (name) => {
-        const existingRole = await prisma.roles.findUnique({
+      const existingRole = await prisma.role.findUnique({
         where: { name }
-        });
-        
-        if (existingRole) {
+      });
+      
+      if (existingRole) {
         return existingRole;
-        }
-        
-        return prisma.roles.create({
+      }
+      
+      return prisma.role.create({
         data: {
           name,
           description: `${name.charAt(0) + name.slice(1).toLowerCase()} Role`
@@ -30,7 +30,7 @@ async function createUsers() {
   // Create users with profiles if they don't exist
   const users = await Promise.all([
     // Admin
-    prisma.users.upsert({
+    prisma.user.upsert({
       where: { email: 'admin@school.com' },
       update: {},
       create: {
@@ -46,7 +46,7 @@ async function createUsers() {
       }
     }),
     // Teachers
-    prisma.users.upsert({
+    prisma.user.upsert({
       where: { email: 'teacher1@school.com' },
       update: {},
       create: {
@@ -66,7 +66,7 @@ async function createUsers() {
       }
       }
     }),
-    prisma.users.upsert({
+    prisma.user.upsert({
       where: { email: 'teacher2@school.com' },
       update: {},
       create: {
@@ -87,7 +87,7 @@ async function createUsers() {
       }
     }),
     // Students
-    prisma.users.upsert({
+    prisma.user.upsert({
       where: { email: 'student1@school.com' },
       update: {},
       create: {
@@ -107,7 +107,7 @@ async function createUsers() {
       }
       }
     }),
-    prisma.users.upsert({
+    prisma.user.upsert({
       where: { email: 'student2@school.com' },
       update: {},
       create: {
@@ -139,7 +139,7 @@ async function seedDemoData() {
 
     // 1. Create Demo Calendar
     console.log('Creating demo calendar...');
-    const calendar = await prisma.calendars.upsert({
+    const calendar = await prisma.calendar.upsert({
       where: {
       name_type: {
         name: "2024-2025 Academic Calendar",
@@ -180,7 +180,7 @@ async function seedDemoData() {
     console.log('Creating demo events...');
     await Promise.all([
       // Academic Events
-        prisma.events.upsert({
+        prisma.event.upsert({
         where: {
         title_calendarId_eventType: {
         title: 'First Day of School',
@@ -210,14 +210,14 @@ async function seedDemoData() {
       }
       }),
       // Holidays
-      prisma.event.upsert({
-      where: {
+        prisma.event.upsert({
+        where: {
         title_calendarId_eventType: {
         title: 'Fall Break',
         calendarId: calendar.id,
         eventType: EventType.HOLIDAY
         }
-      },
+        },
       update: {
         description: 'Fall semester break',
         eventType: EventType.HOLIDAY,
@@ -239,14 +239,14 @@ async function seedDemoData() {
         visibility: 'ALL'
       }
       }),
-      prisma.event.upsert({
-      where: {
+        prisma.event.upsert({
+        where: {
         title_calendarId_eventType: {
         title: 'Winter Break',
         calendarId: calendar.id,
         eventType: EventType.HOLIDAY
         }
-      },
+        },
       update: {
         description: 'Winter holiday break',
         eventType: EventType.HOLIDAY,
@@ -268,14 +268,14 @@ async function seedDemoData() {
         visibility: 'ALL'
       }
       }),
-      prisma.event.upsert({
-      where: {
+        prisma.event.upsert({
+        where: {
         title_calendarId_eventType: {
         title: 'Spring Break',
         calendarId: calendar.id,
         eventType: EventType.HOLIDAY
         }
-      },
+        },
       update: {
         description: 'Spring semester break',
         eventType: EventType.HOLIDAY,
@@ -297,129 +297,129 @@ async function seedDemoData() {
         visibility: 'ALL'
       }
       }),
-      // Exams
-      prisma.event.upsert({
-      where: {
-        title_calendarId_eventType: {
-        title: 'Fall Midterms',
-        calendarId: calendar.id,
-        eventType: EventType.EXAM
+        // Exams
+        prisma.event.upsert({
+        where: {
+          title_calendarId_eventType: {
+          title: 'Fall Midterms',
+          calendarId: calendar.id,
+          eventType: EventType.EXAM
+          }
+        },
+        update: {
+          description: 'Fall semester midterm examinations',
+          eventType: EventType.EXAM,
+          startDate: new Date('2024-10-07'),
+          endDate: new Date('2024-10-11'),
+          status: Status.ACTIVE,
+          priority: 'HIGH',
+          visibility: 'ALL'
+        },
+        create: {
+          title: 'Fall Midterms',
+          description: 'Fall semester midterm examinations',
+          eventType: EventType.EXAM,
+          startDate: new Date('2024-10-07'),
+          endDate: new Date('2024-10-11'),
+          calendarId: calendar.id,
+          status: Status.ACTIVE,
+          priority: 'HIGH',
+          visibility: 'ALL'
         }
-      },
-      update: {
-        description: 'Fall semester midterm examinations',
-        eventType: EventType.EXAM,
-        startDate: new Date('2024-10-07'),
-        endDate: new Date('2024-10-11'),
-        status: Status.ACTIVE,
-        priority: 'HIGH',
-        visibility: 'ALL'
-      },
-      create: {
-        title: 'Fall Midterms',
-        description: 'Fall semester midterm examinations',
-        eventType: EventType.EXAM,
-        startDate: new Date('2024-10-07'),
-        endDate: new Date('2024-10-11'),
-        calendarId: calendar.id,
-        status: Status.ACTIVE,
-        priority: 'HIGH',
-        visibility: 'ALL'
-      }
-      }),
-      prisma.event.upsert({
-      where: {
-        title_calendarId_eventType: {
-        title: 'Fall Finals',
-        calendarId: calendar.id,
-        eventType: EventType.EXAM
+        }),
+        prisma.event.upsert({
+        where: {
+          title_calendarId_eventType: {
+          title: 'Fall Finals',
+          calendarId: calendar.id,
+          eventType: EventType.EXAM
+          }
+        },
+        update: {
+          description: 'Fall semester final examinations',
+          eventType: EventType.EXAM,
+          startDate: new Date('2024-12-16'),
+          endDate: new Date('2024-12-20'),
+          status: Status.ACTIVE,
+          priority: 'HIGH',
+          visibility: 'ALL'
+        },
+        create: {
+          title: 'Fall Finals',
+          description: 'Fall semester final examinations',
+          eventType: EventType.EXAM,
+          startDate: new Date('2024-12-16'),
+          endDate: new Date('2024-12-20'),
+          calendarId: calendar.id,
+          status: Status.ACTIVE,
+          priority: 'HIGH',
+          visibility: 'ALL'
         }
-      },
-      update: {
-        description: 'Fall semester final examinations',
-        eventType: EventType.EXAM,
-        startDate: new Date('2024-12-16'),
-        endDate: new Date('2024-12-20'),
-        status: Status.ACTIVE,
-        priority: 'HIGH',
-        visibility: 'ALL'
-      },
-      create: {
-        title: 'Fall Finals',
-        description: 'Fall semester final examinations',
-        eventType: EventType.EXAM,
-        startDate: new Date('2024-12-16'),
-        endDate: new Date('2024-12-20'),
-        calendarId: calendar.id,
-        status: Status.ACTIVE,
-        priority: 'HIGH',
-        visibility: 'ALL'
-      }
-      }),
-      prisma.event.upsert({
-      where: {
-        title_calendarId_eventType: {
-        title: 'Spring Midterms',
-        calendarId: calendar.id,
-        eventType: EventType.EXAM
+        }),
+        prisma.event.upsert({
+        where: {
+          title_calendarId_eventType: {
+          title: 'Spring Midterms',
+          calendarId: calendar.id,
+          eventType: EventType.EXAM
+          }
+        },
+        update: {
+          description: 'Spring semester midterm examinations',
+          eventType: EventType.EXAM,
+          startDate: new Date('2025-03-17'),
+          endDate: new Date('2025-03-21'),
+          status: Status.ACTIVE,
+          priority: 'HIGH',
+          visibility: 'ALL'
+        },
+        create: {
+          title: 'Spring Midterms',
+          description: 'Spring semester midterm examinations',
+          eventType: EventType.EXAM,
+          startDate: new Date('2025-03-17'),
+          endDate: new Date('2025-03-21'),
+          calendarId: calendar.id,
+          status: Status.ACTIVE,
+          priority: 'HIGH',
+          visibility: 'ALL'
         }
-      },
-      update: {
-        description: 'Spring semester midterm examinations',
-        eventType: EventType.EXAM,
-        startDate: new Date('2025-03-17'),
-        endDate: new Date('2025-03-21'),
-        status: Status.ACTIVE,
-        priority: 'HIGH',
-        visibility: 'ALL'
-      },
-      create: {
-        title: 'Spring Midterms',
-        description: 'Spring semester midterm examinations',
-        eventType: EventType.EXAM,
-        startDate: new Date('2025-03-17'),
-        endDate: new Date('2025-03-21'),
-        calendarId: calendar.id,
-        status: Status.ACTIVE,
-        priority: 'HIGH',
-        visibility: 'ALL'
-      }
-      }),
-      prisma.event.upsert({
-      where: {
-        title_calendarId_eventType: {
-        title: 'Spring Finals',
-        calendarId: calendar.id,
-        eventType: EventType.EXAM
+        }),
+        prisma.event.upsert({
+        where: {
+          title_calendarId_eventType: {
+          title: 'Spring Finals',
+          calendarId: calendar.id,
+          eventType: EventType.EXAM
+          }
+        },
+        update: {
+          description: 'Spring semester final examinations',
+          eventType: EventType.EXAM,
+          startDate: new Date('2025-05-26'),
+          endDate: new Date('2025-05-30'),
+          status: Status.ACTIVE,
+          priority: 'HIGH',
+          visibility: 'ALL'
+        },
+        create: {
+          title: 'Spring Finals',
+          description: 'Spring semester final examinations',
+          eventType: EventType.EXAM,
+          startDate: new Date('2025-05-26'),
+          endDate: new Date('2025-05-30'),
+          calendarId: calendar.id,
+          status: Status.ACTIVE,
+          priority: 'HIGH',
+          visibility: 'ALL'
         }
-      },
-      update: {
-        description: 'Spring semester final examinations',
-        eventType: EventType.EXAM,
-        startDate: new Date('2025-05-26'),
-        endDate: new Date('2025-05-30'),
-        status: Status.ACTIVE,
-        priority: 'HIGH',
-        visibility: 'ALL'
-      },
-      create: {
-        title: 'Spring Finals',
-        description: 'Spring semester final examinations',
-        eventType: EventType.EXAM,
-        startDate: new Date('2025-05-26'),
-        endDate: new Date('2025-05-30'),
-        calendarId: calendar.id,
-        status: Status.ACTIVE,
-        priority: 'HIGH',
-        visibility: 'ALL'
-      }
-      })
+        })
     ]);
 
     // 3. Create Demo Terms with Grading Periods and Weeks
     console.log('Creating demo terms...');
     const terms = await Promise.all([
-        prisma.terms.upsert({
+        prisma.term.upsert({
         where: {
         name_calendarId: {
           name: "Fall Semester 2024",
@@ -574,7 +574,7 @@ async function seedDemoData() {
     // 4. Create Demo Programs
     console.log('Creating demo programs...');
     const programs = await Promise.all([
-        prisma.programs.upsert({
+        prisma.program.upsert({
         where: { name: 'Elementary Education' },
         update: {
         description: 'K-6 Elementary Education Program',
@@ -588,13 +588,13 @@ async function seedDemoData() {
         calendarId: calendar.id,
       }
       }),
-      prisma.program.upsert({
-      where: { name: 'Middle School Program' },
-      update: {
+        prisma.program.upsert({
+        where: { name: 'Middle School Program' },
+        update: {
         description: 'Grades 7-9 Middle School Education',
         status: Status.ACTIVE,
         calendarId: calendar.id,
-      },
+        },
       create: {
         name: 'Middle School Program',
         description: 'Grades 7-9 Middle School Education',
@@ -767,17 +767,17 @@ async function seedDemoData() {
     // 8. Create Demo Classrooms
     console.log('Creating demo classrooms...');
     const classrooms = await Promise.all([
-      prisma.classroom.upsert({
-      where: { name: 'Room 101' },
-      update: {},
+        prisma.classroom.upsert({
+        where: { name: 'Room 101' },
+        update: {},
       create: {
         name: "Room 101",
         capacity: 30,
         resources: "Projector, Whiteboard"
       }
       }),
-      prisma.classroom.upsert({
-      where: { name: 'Room 102' },
+        prisma.classroom.upsert({
+        where: { name: 'Room 102' },
       update: {},
       create: {
         name: 'Room 102',
@@ -785,8 +785,8 @@ async function seedDemoData() {
         resources: 'Smart Board, Computers',
       }
       }),
-      prisma.classroom.upsert({
-      where: { name: 'Science Lab' },
+        prisma.classroom.upsert({
+        where: { name: 'Science Lab' },
       update: {},
       create: {
         name: 'Science Lab',
@@ -824,7 +824,7 @@ async function seedDemoData() {
     );
 
     // Add teacher assignments before creating periods
-    const teachers = await prisma.teacherProfiles.findMany({
+    const teachers = await prisma.teacherProfile.findMany({
       include: {
       user: true
       }
@@ -896,7 +896,8 @@ async function seedDemoData() {
 
     // Create periods for each timetable
     console.log('Creating periods...');
-    for (const [index, timetable] of timetables.entries()) {
+    for (let index = 0; index < timetables.length; index++) {
+      const timetable = timetables[index];
       const dayOffset = index + 1; // Use different days (1 = Monday, 2 = Tuesday, etc.)
       const teacherIndex = index % teachers.length; // Rotate through available teachers
       const classroomIndex = index % classrooms.length; // Rotate through available classrooms
@@ -977,28 +978,32 @@ async function seedDemoData() {
       },
       update: {
       description: 'First quarter math assessment',
-      type: ActivityType.QUIZ,
-      deadline: new Date('2024-09-15'),
-      gradingCriteria: 'Multiple choice assessment'
+      type: 'QUIZ',
+      dueDate: new Date('2024-09-15'),
+      points: 100,
+      status: 'PUBLISHED',
+      subjectId: subjects[0].id
       },
       create: {
       title: 'Math Quiz 1',
       description: 'First quarter math assessment',
-      type: ActivityType.QUIZ,
+      type: 'QUIZ',
       classId: classes[0].id,
-      deadline: new Date('2024-09-15'),
-      gradingCriteria: 'Multiple choice assessment'
+      dueDate: new Date('2024-09-15'),
+      points: 100,
+      status: 'PUBLISHED',
+      subjectId: subjects[0].id
       }
     });
 
     // Create quiz instructions resource
     await prisma.resource.upsert({
-      where: {
-      title_activityId: {
+        where: {
+        title_activityId: {
         title: 'Quiz Instructions',
         activityId: mathQuiz.id
-      }
-      },
+        }
+        },
       update: {
       type: ResourceType.DOCUMENT,
       url: 'https://example.com/quiz1.pdf'
@@ -1021,29 +1026,33 @@ async function seedDemoData() {
       },
       update: {
       description: 'Group research project',
-      type: ActivityType.PROJECT,
-      deadline: new Date('2024-10-30'),
-      gradingCriteria: 'Project rubric'
+      type: 'PROJECT',
+      dueDate: new Date('2024-10-30'),
+      points: 200,
+      status: 'PUBLISHED',
+      subjectId: subjects[1].id
       },
       create: {
       title: 'Science Project',
       description: 'Group research project',
-      type: ActivityType.PROJECT,
+      type: 'PROJECT',
       classId: classes[0].id,
-      deadline: new Date('2024-10-30'),
-      gradingCriteria: 'Project rubric'
+      dueDate: new Date('2024-10-30'),
+      points: 200,
+      status: 'PUBLISHED',
+      subjectId: subjects[1].id
       }
     });
 
     // Create project resources
     await Promise.all([
       prisma.resource.upsert({
-      where: {
+        where: {
         title_activityId: {
         title: 'Project Guidelines',
         activityId: scienceProject.id
         }
-      },
+        },
       update: {
         type: ResourceType.DOCUMENT,
         url: 'https://example.com/project-guide.pdf'
@@ -1056,12 +1065,12 @@ async function seedDemoData() {
       }
       }),
       prisma.resource.upsert({
-      where: {
+        where: {
         title_activityId: {
         title: 'Reference Material',
         activityId: scienceProject.id
         }
-      },
+        },
       update: {
         type: ResourceType.LINK,
         url: 'https://example.com/references'
@@ -1076,7 +1085,7 @@ async function seedDemoData() {
     ]);
 
     // Add student assignments
-    const students = await prisma.studentProfiles.findMany();
+    const students = await prisma.studentProfile.findMany();
     if (students.length > 0) {
       console.log('Creating student assignments...');
       await Promise.all(

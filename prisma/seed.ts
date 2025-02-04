@@ -1,4 +1,4 @@
-import { PrismaClient, UserType } from '@prisma/client';
+import { PrismaClient, UserType, Role, Status } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { DefaultRoles } from '../src/utils/permissions';
 
@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 async function main() {
   // First, create the roles with their permissions
   const roles = await Promise.all([
-    prisma.roles.upsert({
+    prisma.role.upsert({
       where: { name: DefaultRoles.SUPER_ADMIN },
       update: {},
       create: {
@@ -57,7 +57,6 @@ async function main() {
     }),
   ]);
 
-  // Updated demo users with userType
   const demoUsers = [
     {
       email: 'superadmin@example.com',
@@ -65,7 +64,7 @@ async function main() {
       name: 'Super Admin',
       role: DefaultRoles.SUPER_ADMIN,
       userType: UserType.ADMIN,
-      status: 'ACTIVE',
+      status: Status.ACTIVE,
     },
     {
       email: 'admin@example.com',
@@ -73,7 +72,7 @@ async function main() {
       name: 'Admin',
       role: DefaultRoles.ADMIN,
       userType: UserType.ADMIN,
-      status: 'ACTIVE',
+      status: Status.ACTIVE,
     },
     {
       email: 'coordinator@example.com',
@@ -81,7 +80,7 @@ async function main() {
       name: 'Program Coordinator',
       role: DefaultRoles.PROGRAM_COORDINATOR,
       userType: UserType.COORDINATOR,
-      status: 'ACTIVE',
+      status: Status.ACTIVE,
     },
     {
       email: 'teacher@example.com',
@@ -89,7 +88,7 @@ async function main() {
       name: 'Teacher',
       role: DefaultRoles.TEACHER,
       userType: UserType.TEACHER,
-      status: 'ACTIVE',
+      status: Status.ACTIVE,
     },
     {
       email: 'student@example.com',
@@ -97,7 +96,7 @@ async function main() {
       name: 'Student',
       role: DefaultRoles.STUDENT,
       userType: UserType.STUDENT,
-      status: 'ACTIVE',
+      status: Status.ACTIVE,
     },
     {
       email: 'parent@example.com',
@@ -105,21 +104,20 @@ async function main() {
       name: 'Parent',
       role: DefaultRoles.PARENT,
       userType: UserType.PARENT,
-      status: 'ACTIVE',
+      status: Status.ACTIVE,
     },
   ] as const;
 
   for (const demoUser of demoUsers) {
     const hashedPassword = await bcrypt.hash(demoUser.password, 12);
-    const role = roles.find((r) => r.name === demoUser.role);
+    const role = roles.find((r: Role) => r.name === demoUser.role);
 
     if (!role) {
       console.log(`Role not found for user: ${demoUser.email}`);
       continue;
     }
 
-    // Updated user creation to include userType
-    const user = await prisma.users.upsert({
+    const user = await prisma.user.upsert({
       where: { email: demoUser.email },
       update: {},
       create: {
@@ -143,45 +141,44 @@ async function main() {
       },
     });
 
-    // Create or update corresponding profile based on role
     switch (demoUser.role) {
       case DefaultRoles.TEACHER:
-        await prisma.teacherProfiles.upsert({
-        where: { userId: user.id },
-        update: { specialization: 'General' },
-        create: {
-        userId: user.id,
-        specialization: 'General',
-        },
-      });
-      break;
+        await prisma.teacherProfile.upsert({
+          where: { userId: user.id },
+          update: { specialization: 'General' },
+          create: {
+            userId: user.id,
+            specialization: 'General',
+          },
+        });
+        break;
       case DefaultRoles.STUDENT:
-        await prisma.studentProfiles.upsert({
-        where: { userId: user.id },
-        update: {},
-        create: {
-        userId: user.id,
-        },
-      });
-      break;
+        await prisma.studentProfile.upsert({
+          where: { userId: user.id },
+          update: {},
+          create: {
+            userId: user.id,
+          },
+        });
+        break;
       case DefaultRoles.PARENT:
-        await prisma.parentProfiles.upsert({
-        where: { userId: user.id },
-        update: {},
-        create: {
-        userId: user.id,
-        },
-      });
-      break;
+        await prisma.parentProfile.upsert({
+          where: { userId: user.id },
+          update: {},
+          create: {
+            userId: user.id,
+          },
+        });
+        break;
       case DefaultRoles.PROGRAM_COORDINATOR:
-        await prisma.coordinatorProfiles.upsert({
-        where: { userId: user.id },
-        update: {},
-        create: {
-        userId: user.id,
-        },
-      });
-      break;
+        await prisma.coordinatorProfile.upsert({
+          where: { userId: user.id },
+          update: {},
+          create: {
+            userId: user.id,
+          },
+        });
+        break;
     }
   }
 
@@ -196,3 +193,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

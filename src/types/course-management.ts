@@ -21,6 +21,9 @@ export interface Subject {
 
 export interface TeacherAssignment {
 	id: string;
+	createdAt: Date;
+	updatedAt: Date;
+	status: 'ACTIVE' | 'INACTIVE';
 	teacherId: string;
 	subjectId: string;
 	classId: string;
@@ -74,7 +77,7 @@ export interface WeeklyUnit {
 // Activity Types
 export interface ClassActivity {
 	id: string;
-	type: 'ASSIGNMENT' | 'QUIZ' | 'PROJECT' | 'DISCUSSION';
+	type: 'ASSIGNMENT' | 'QUIZ' | 'PROJECT' | 'DISCUSSION' | 'EXAM';
 	title: string;
 	description: string;
 	dueDate?: Date;

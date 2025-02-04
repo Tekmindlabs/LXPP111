@@ -1,5 +1,50 @@
-import { Course, Subject, TeacherAssignment, CourseStructure, ClassActivity, ProgressTracking } from '../../types/course-management';
+import { Course, Subject, TeacherAssignment, CourseStructure, CourseStructureType, ClassActivity, ProgressTracking } from '../../types/course-management';
 import { db } from '../db';
+
+// Helper mapping functions
+const mapTeacherAssignment = (t: any): TeacherAssignment => ({
+	id: t.id,
+	teacherId: t.teacherId,
+	subjectId: t.subjectId,
+	classId: t.classId || '',
+	isClassTeacher: t.isClassTeacher || false,
+	assignedAt: t.assignedAt || new Date(),
+	createdAt: t.createdAt || new Date(),
+	updatedAt: t.updatedAt || new Date(),
+	status: t.status || 'ACTIVE'
+});
+
+const mapClassActivity = (a: any): ClassActivity => ({
+	id: a.id,
+	type: (a.type || 'ASSIGNMENT') as ClassActivity['type'],
+	title: a.title,
+	description: a.description,
+	dueDate: a.dueDate ? new Date(a.dueDate) : undefined,
+	points: typeof a.points === 'number' ? a.points : undefined,
+	status: (a.status || 'DRAFT') as ClassActivity['status']
+});
+
+const mapCourseStructure = (structure: any): CourseStructure => {
+	if (!structure) {
+		return {
+			type: 'CHAPTER',
+			units: []
+		};
+	}
+	return {
+		type: (structure.type || 'CHAPTER') as CourseStructureType,
+		units: Array.isArray(structure.units) ? structure.units : []
+	};
+};
+
+const mapSubject = (s: any): Subject => ({
+	id: s.id,
+	name: s.name,
+	description: s.description || undefined,
+	courseStructure: mapCourseStructure(s.courseStructure),
+	teachers: s.teachers.map(mapTeacherAssignment),
+	activities: s.activities.map(mapClassActivity)
+});
 
 export class CourseManagementService {
 	async createCourse(courseData: Omit<Course, 'id' | 'subjects'>): Promise<Course> {
@@ -28,29 +73,8 @@ export class CourseManagementService {
 			id: course.id,
 			name: course.name,
 			academicYear: course.academicYear,
-			subjects: course.subjects.map(s => ({
-				id: s.id,
-				name: s.name,
-				description: s.description || undefined,
-				courseStructure: s.courseStructure as unknown as CourseStructure,
-				teachers: s.teachers.map(t => ({
-					id: t.id,
-					teacherId: t.teacherId,
-					subjectId: t.subjectId,
-					classId: t.classId,
-					isClassTeacher: t.isClassTeacher,
-					assignedAt: t.assignedAt
-				})),
-				activities: s.activities.map(a => ({
-					id: a.id,
-					type: a.type as ClassActivity['type'],
-					title: a.title,
-					description: a.description,
-					dueDate: a.dueDate || undefined,
-					points: a.points || undefined,
-					status: a.status as ClassActivity['status']
-				}))
-			})),
+			subjects: course.subjects.map(mapSubject),
+
 			program: {
 				id: course.program.id,
 				name: course.program.name || ''
@@ -87,29 +111,8 @@ export class CourseManagementService {
 			id: course.id,
 			name: course.name,
 			academicYear: course.academicYear,
-			subjects: course.subjects.map(s => ({
-				id: s.id,
-				name: s.name,
-				description: s.description || undefined,
-				courseStructure: s.courseStructure as unknown as CourseStructure,
-				teachers: s.teachers.map(t => ({
-					id: t.id,
-					teacherId: t.teacherId,
-					subjectId: t.subjectId,
-					classId: t.classId,
-					isClassTeacher: t.isClassTeacher,
-					assignedAt: t.assignedAt
-				})),
-				activities: s.activities.map(a => ({
-					id: a.id,
-					type: a.type as ClassActivity['type'],
-					title: a.title,
-					description: a.description,
-					dueDate: a.dueDate || undefined,
-					points: a.points || undefined,
-					status: a.status as ClassActivity['status']
-				}))
-			})),
+			subjects: course.subjects.map(mapSubject),
+
 			program: {
 				id: course.program.id,
 				name: course.program.name || ''
@@ -134,29 +137,8 @@ export class CourseManagementService {
 			}
 		});
 
-		return {
-			id: subject.id,
-			name: subject.name,
-			description: subject.description || undefined,
-			courseStructure: subject.courseStructure as unknown as CourseStructure,
-			teachers: subject.teachers.map(t => ({
-				id: t.id,
-				teacherId: t.teacherId,
-				subjectId: t.subjectId,
-				classId: t.classId,
-				isClassTeacher: t.isClassTeacher,
-				assignedAt: t.assignedAt
-			})),
-			activities: subject.activities.map(a => ({
-				id: a.id,
-				type: a.type as ClassActivity['type'],
-				title: a.title,
-				description: a.description,
-				dueDate: a.dueDate || undefined,
-				points: a.points || undefined,
-				status: a.status as ClassActivity['status']
-			}))
-		};
+		return mapSubject(subject);
+
 	}
 
 	async updateSubject(subjectId: string, subjectData: Partial<Subject>): Promise<Subject> {
@@ -175,32 +157,11 @@ export class CourseManagementService {
 			}
 		});
 
-		return {
-			id: subject.id,
-			name: subject.name,
-			description: subject.description || undefined,
-			courseStructure: subject.courseStructure as unknown as CourseStructure,
-			teachers: subject.teachers.map(t => ({
-				id: t.id,
-				teacherId: t.teacherId,
-				subjectId: t.subjectId,
-				classId: t.classId,
-				isClassTeacher: t.isClassTeacher,
-				assignedAt: t.assignedAt
-			})),
-			activities: subject.activities.map(a => ({
-				id: a.id,
-				type: a.type as ClassActivity['type'],
-				title: a.title,
-				description: a.description,
-				dueDate: a.dueDate || undefined,
-				points: a.points || undefined,
-				status: a.status as ClassActivity['status']
-			}))
-		};
+		return mapSubject(subject);
+
 	}
 
-	async assignTeacher(assignment: Omit<TeacherAssignment, 'id'>): Promise<TeacherAssignment> {
+	async assignTeacher(assignment: Omit<TeacherAssignment, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Promise<TeacherAssignment> {
 		const teacherAssignment = await db.teacherAssignment.create({
 			data: {
 				teacherId: assignment.teacherId,
@@ -211,7 +172,12 @@ export class CourseManagementService {
 			}
 		});
 
-		return teacherAssignment;
+		return {
+			...teacherAssignment,
+			status: 'ACTIVE' as const,
+			createdAt: new Date(),
+			updatedAt: new Date()
+		};
 	}
 
 	async updateTeacherAssignment(assignmentId: string, updates: Partial<TeacherAssignment>): Promise<TeacherAssignment> {
@@ -220,7 +186,7 @@ export class CourseManagementService {
 			data: updates
 		});
 
-		return assignment;
+		return mapTeacherAssignment(assignment);
 	}
 
 	async updateCourseStructure(subjectId: string, structure: CourseStructure): Promise<Subject> {
@@ -240,12 +206,8 @@ export class CourseManagementService {
 			}
 		});
 
-		return {
-			...subject,
-			teachers: subject.teachers || [],
-			activities: subject.activities || [],
-			courseStructure: subject.courseStructure as CourseStructure
-		};
+		return mapSubject(subject);
+
 	}
 
 	async updateActivityStatus(activityId: string, status: ClassActivity['status']): Promise<ClassActivity> {
@@ -254,12 +216,9 @@ export class CourseManagementService {
 			data: { status }
 		});
 
-		return {
-			...activity,
-			type: activity.type as ClassActivity['type'],
-			status: activity.status as ClassActivity['status']
-		};
+		return mapClassActivity(activity);
 	}
+
 
 	async createActivity(subjectId: string, activity: Omit<ClassActivity, 'id'>): Promise<ClassActivity> {
 		const newActivity = await db.classActivity.create({
@@ -268,20 +227,17 @@ export class CourseManagementService {
 				description: activity.description,
 				type: activity.type,
 				status: activity.status,
-				dueDate: activity.dueDate,
-				points: activity.points,
+				dueDate: activity.dueDate || null,
+				points: activity.points || null,
 				subject: {
 					connect: { id: subjectId }
 				}
 			}
 		});
 
-		return {
-			...newActivity,
-			type: newActivity.type as ClassActivity['type'],
-			status: newActivity.status as ClassActivity['status']
-		};
+		return mapClassActivity(newActivity);
 	}
+
 
 	async updateStudentProgress(tracking: Omit<ProgressTracking, 'id'>): Promise<ProgressTracking> {
 		const progress = await db.progressTracking.upsert({
